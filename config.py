@@ -22,14 +22,19 @@ CLEAN_PARQUET = DATA_DIR / "solusdt_4h_clean.parquet"  # 清洗后
 PRED_PARQUET = DATA_DIR / "solusdt_4h_pred.parquet"    # 含预测与回测结果
 
 # ---------------------------------------------------------------- 数据源
-# Binance 官方公开数据镜像(无需 API Key; 沙箱白名单内)。
-# 注意: api.binance.com 在本环境不可达, 只有 data-api.binance.vision 可达。
-BINANCE_BASE = "https://data-api.binance.vision"
+# 欧易(OKX)公开行情接口(无需 API Key)。
+# 注意: 本沙箱网络走白名单, www.okx.com 不可达(连接被拒); 数据由外网主机抓取后,
+# 以原始 JSON 转存到 data/solusdt_4h_okx_raw.json, 再离线导入(见 src/data_fetch.py)。
+OKX_BASE = "https://www.okx.com"
+OKX_INST = "SOL-USDT"        # OKX 现货交易对
+OKX_BAR = "4H"               # OKX K线周期(4 小时)
+OKX_LIMIT = 100              # history-candles 单次请求上限(OKX 硬限制)
+OKX_DUMP = DATA_DIR / "solusdt_4h_okx_raw.json"   # 外网主机抓取的原始 JSON
+
 SYMBOL = "SOLUSDT"
 INTERVAL = "4h"
-KLINES_LIMIT = 1000          # 单次请求上限(Binance 硬限制)
-REQUEST_SLEEP = 0.25         # 请求间隔(秒), 礼貌限速
-REQUEST_TIMEOUT = 20
+REQUEST_SLEEP = 0.2          # 请求间隔(秒), 礼貌限速
+REQUEST_TIMEOUT = 25
 REQUEST_RETRY = 4            # 单次请求重试次数
 
 # ---------------------------------------------------------------- 清洗
