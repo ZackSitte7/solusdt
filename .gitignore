@@ -1,0 +1,37 @@
+# ---- 环境 / 依赖 ----
+.venv/
+venv/
+env/
+node_modules/
+target/
+dist/
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# ---- 数据 / 产物(不入库, 可用脚本重新生成) ----
+data/
+reports/
+*.parquet
+*.csv
+*.png
+
+# ---- 敏感信息: 一律不得入库 ----
+.env
+.env.*
+*.key
+*_key
+*_key.txt
+secrets/
+credentials*
+config.local.*
+*.pem
+*.p12
+
+# ---- 系统 ----
+.DS_Store
+*.log
