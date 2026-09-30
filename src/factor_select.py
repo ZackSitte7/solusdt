@@ -177,3 +177,52 @@ def select_factors_robust(F_train: pd.DataFrame, y_train: pd.Series, side: str,
             "dropped_by_corr": dropped_by, "dropped_by_cap": dropped_by_cap,
             "n_candidates": len(order), "n_after_dedup": len(keep),
             "max_factors": max_factors}
+
+
+# ================================================================ v4: VIF 迭代剪枝
+def vif_series(F: pd.DataFrame, factors: List[str]) -> pd.Series:
+    """逐因子方差膨胀因子 VIF_j = 1/(1-R²_j) = diag(Σ⁻¹), Σ 为相关矩阵。
+
+    VIF 度量的是「该因子能被其余因子线性解释的程度」, 是**多元共线**指标。
+    pairwise 去冗余(|corr|>=阈值)只看两两相关, 挡不住"三个以上因子联合共线"的情形
+    (如 rsi_14 与 {rsi_28, ma_ratio_50, atr_ratio} 组合), 故需 VIF 兜底。
+    零方差(常数)因子无定义, 直接从返回中剔除。
+    """
+    sub = F[factors].replace([np.inf, -np.inf], np.nan).dropna()
+    X = sub.to_numpy(dtype=float)
+    sd = X.std(axis=0, ddof=1)
+    mask = sd > 0
+    names = [f for f, m in zip(factors, mask) if m]
+    if len(names) <= 1:
+        return pd.Series(1.0, index=names)
+    X = X[:, mask]
+    Xz = (X - X.mean(axis=0)) / X.std(axis=0, ddof=1)
+    corr = np.nan_to_num(np.corrcoef(Xz, rowvar=False), nan=0.0)
+    inv = np.linalg.pinv(corr)
+    return pd.Series(np.diag(inv), index=names)
+
+
+def vif_prune(F_train: pd.DataFrame, factors: List[str], max_vif: float = None,
+              min_keep: int = None) -> Tuple[List[str], List[dict]]:
+    """迭代删除 VIF 最大的因子, 直到所有因子 VIF <= max_vif 或只剩 min_keep 个。
+
+    返回 (保留因子(保持原顺序), 删除明细[{factor, vif, reason}])。零方差因子先剔除。
+    """
+    max_vif = C.V4_MAX_VIF if max_vif is None else max_vif
+    min_keep = C.V4_MIN_FACTORS if min_keep is None else min_keep
+    facs = list(factors)
+    dropped: List[dict] = []
+    while len(facs) > 1:
+        v = vif_series(F_train, facs)
+        if len(v) < len(facs):                       # 丢掉零方差因子(重来一轮)
+            for f in facs:
+                if f not in v.index:
+                    dropped.append(dict(factor=f, vif=None, reason="zero_variance"))
+            facs = [f for f in facs if f in v.index]
+            continue
+        if len(facs) <= min_keep or float(v.max()) <= max_vif:
+            break
+        worst = str(v.idxmax())
+        dropped.append(dict(factor=worst, vif=float(v.max()), reason="vif"))
+        facs.remove(worst)
+    return facs, dropped
