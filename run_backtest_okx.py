@@ -7,7 +7,7 @@
   2  前 70% train / 中间 15% OOF / 最后 15% OOC(按时间顺序)
   3  LightGBM 多因子
   4  清洗后使用 4h 数据
-  5  4h 因子库 + IC 筛选 + KMeans 去冗余
+  5  4h 因子库 + IC 筛选 + 相关性阈值去冗余
   6  金融时序折叠(Purged K-Fold + Embargo)
   7  在 OOF 上优化收益
   8  优化模型层 + 执行层, 目标为 OOF 收益与夏普
@@ -110,7 +110,8 @@ def main() -> None:
                str(df["datetime"].iloc[s["end"] - 1])[:16], bh[s["name"]] * 100))
 
     # ---------------- 5. 因子筛选(仅训练段)
-    print("\n=== 因子筛选(仅用训练段, IC=Spearman, KMeans 去冗余) ===")
+    print("\n=== 因子筛选(仅用训练段, IC=Spearman, 相关性阈值去冗余 |corr|<%.2f) ==="
+          % C.DEDUP_MAX_CORR)
     sel = factor_select.select_factors(Fmat.iloc[tr].reset_index(drop=True),
                                        y.iloc[tr].reset_index(drop=True))
     ic: pd.Series = sel["ic"]
@@ -119,8 +120,10 @@ def main() -> None:
     print("  |IC| >= %.3f 的因子: %d / %d" %
           (C.IC_MIN_ABS, int((ic.abs() >= C.IC_MIN_ABS).sum()), len(ic)))
     for side in ("long", "short"):
-        print("  [%s] 聚类去冗余后保留 %d 个: %s" %
-              (side, len(sel["selected"][side]), ", ".join(sel["selected"][side])))
+        kept = sel["selected"][side]
+        n_drop = len(sel["dropped_by_corr"][side])
+        print("  [%s] 方向过滤候选 %d 个 -> 去冗余丢弃 %d 个 -> 保留 %d 个: %s" %
+              (side, len(kept) + n_drop, n_drop, len(kept), ", ".join(kept)))
 
     # ---------------- 6/7/8/9/12/13. 逐方向在 OOF 上优化(模型层 × 执行层)
     n_combo = len(models.MODEL_GRID) * len(C.EXEC_THR_GRID) * len(C.TP_ATR_GRID) * len(C.SL_ATR_GRID)
@@ -214,7 +217,7 @@ def _save_outputs(df, ic, sel, frozen, grids, metrics, bh, sl, trades_by_seg) ->
         "config": {k: getattr(C, k) for k in
                    ("SYMBOL", "INTERVAL", "BACKTEST_SOURCE", "HORIZON", "LABEL_MODE",
                     "TRAIN_FRAC", "OOF_FRAC", "OOC_FRAC", "CV_N_SPLITS", "CV_EMBARGO_BARS",
-                    "IC_MIN_ABS", "KMEANS_MAX_CLUSTERS", "INIT_CAPITAL", "TRADE_NOTIONAL",
+                    "IC_MIN_ABS", "DEDUP_MAX_CORR", "INIT_CAPITAL", "TRADE_NOTIONAL",
                     "MAX_HOLD_BARS", "FEE_RATE", "SLIP_RATE", "TP_ATR_GRID", "SL_ATR_GRID",
                     "EXEC_THR_GRID", "OOF_MIN_TRADES", "MIN_TP_RATE",
                     "OBJECTIVE_PRIMARY", "OBJECTIVE_SECONDARY")},

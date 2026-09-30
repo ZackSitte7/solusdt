@@ -2,19 +2,36 @@
   "long": [
     "vol_ratio_5_20",
     "range_ratio",
+    "atr_ratio_chg",
     "rv_12",
+    "atr_ratio",
     "ma_align",
+    "vol_ma_ratio",
+    "rv_50",
+    "bb_width_20",
     "vol_z_20",
     "pos_in_range_100",
     "ret_24",
     "ma_slope_50",
+    "macd_signal",
+    "pos_in_range_50",
+    "rsi_28",
+    "ma_ratio_200",
     "hour_cos",
     "bb_pos_20"
   ],
   "short": [
     "mom_accel",
     "hour_sin",
+    "gap",
+    "ret_6",
     "close_pos_in_bar",
-    "lower_shadow"
+    "ret_1",
+    "body_ratio",
+    "dow_cos",
+    "dow_sin",
+    "lower_shadow",
+    "consec_up",
+    "consec_dn"
   ]
 }

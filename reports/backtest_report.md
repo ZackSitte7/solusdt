@@ -7,24 +7,24 @@
 
 ## 因子(多空独立筛选, 仅用 train)
 
-- 多头: vol_ratio_5_20, range_ratio, rv_12, ma_align, vol_z_20, pos_in_range_100, ret_24, ma_slope_50, hour_cos, bb_pos_20
-- 空头: mom_accel, hour_sin, close_pos_in_bar, lower_shadow
+- 多头: vol_ratio_5_20, range_ratio, atr_ratio_chg, rv_12, atr_ratio, ma_align, vol_ma_ratio, rv_50, bb_width_20, vol_z_20, pos_in_range_100, ret_24, ma_slope_50, macd_signal, pos_in_range_50, rsi_28, ma_ratio_200, hour_cos, bb_pos_20
+- 空头: mom_accel, hour_sin, gap, ret_6, close_pos_in_bar, ret_1, body_ratio, dow_cos, dow_sin, lower_shadow, consec_up, consec_dn
 
 ## 执行层与模型(OOF 优化后冻结)
 
-- long: 模型 base, 阈值分位 0.50(绝对 0.003874), 止盈 3.00 ATR, 止损 1.50 ATR, 因子 10 个
-- short: 模型 shallow, 阈值分位 0.60(绝对 0.025543), 止盈 2.50 ATR, 止损 2.50 ATR, 因子 4 个
+- long: 模型 shallow, 阈值分位 0.50(绝对 0.004667), 止盈 3.00 ATR, 止损 2.50 ATR, 因子 19 个
+- short: 模型 base, 阈值分位 0.50(绝对 0.020354), 止盈 2.50 ATR, 止损 2.00 ATR, 因子 12 个
 
 ## 绩效(train 为样本内参考; OOF 为优化段; OOC 仅观察)
 
 | 方向 | 段 | 总收益% | 夏普 | 卡玛 | 最大回撤% | 胜率% | 盈亏比 | 笔数 |
 |---|---|---|---|---|---|---|---|---|
-| long | train | +76.55 | 3.25 | 1.93 | -7.51 | 47.2 | 1.52 | 812 |
-| long | oof | +3.39 | 1.10 | 0.71 | -5.31 | 44.2 | 1.39 | 165 |
-| long | ooc | -5.07 | -2.02 | -0.63 | -8.97 | 37.9 | 1.37 | 169 |
-| short | train | -49.82 | -2.26 | -0.27 | -55.36 | 48.6 | 0.87 | 812 |
-| short | oof | +7.13 | 2.04 | 1.21 | -6.56 | 51.7 | 1.12 | 176 |
-| short | ooc | -2.31 | -0.82 | -0.39 | -6.61 | 48.0 | 1.00 | 179 |
+| long | train | +81.90 | 3.73 | 2.80 | -5.47 | 55.1 | 1.17 | 683 |
+| long | oof | +2.73 | 0.89 | 0.56 | -5.45 | 51.1 | 1.05 | 139 |
+| long | ooc | -5.63 | -2.20 | -0.63 | -9.86 | 44.9 | 0.97 | 136 |
+| short | train | +26.15 | 1.23 | 0.34 | -16.57 | 52.2 | 1.03 | 761 |
+| short | oof | +10.44 | 3.11 | 2.69 | -4.34 | 52.0 | 1.22 | 175 |
+| short | ooc | +0.09 | 0.05 | 0.02 | -4.65 | 47.1 | 1.13 | 174 |
 
 ### 各段买入持有基准
 

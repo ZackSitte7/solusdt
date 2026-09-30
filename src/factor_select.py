@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
-"""因子筛选 —— IC 过滤 + 相关性聚类去冗余。
+"""因子筛选 —— IC 过滤 + 相关性阈值贪心去冗余。
 
 流程(全部只使用训练段数据, 杜绝用 OOF/OOC 选因子):
   1. 逐因子算 IC(Spearman 秩相关, 对异常值稳健)
   2. 按 |IC| 阈值过滤
-  3. 用 1-|corr| 作距离做 KMeans 聚类, 每簇只保留 |IC| 最高的因子 -> 去掉同义因子
+  3. 按 |IC| 降序贪心去冗余: 与任一已保留因子 |corr| >= DEDUP_MAX_CORR 则丢弃
+     (信息已被 IC 更强的因子代表) -> 数量由相关性结构决定, 不设固定上限
   4. 多头/空头分别筛选: 多头偏好 IC>0 的因子, 空头偏好 IC<0 的因子
 """
 from __future__ import annotations
@@ -13,7 +14,6 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
-from sklearn.cluster import KMeans
 
 import config as C
 
@@ -40,45 +40,43 @@ def select_by_side(ic: pd.Series, side: str, min_abs: float = None) -> List[str]
     return list(sel.index)
 
 
-def cluster_prune(F: pd.DataFrame, ic: pd.Series, candidates: List[str],
-                  max_clusters: int = None) -> Tuple[List[str], Dict[str, int]]:
-    """相关性聚类去冗余: 距离 = 1 - |corr|, 每簇保留 |IC| 最大者。"""
-    max_clusters = C.KMEANS_MAX_CLUSTERS if max_clusters is None else max_clusters
+def corr_greedy_prune(F: pd.DataFrame, ic: pd.Series, candidates: List[str],
+                      max_corr: float = None) -> Tuple[List[str], Dict[str, str]]:
+    """相关性阈值贪心去冗余(取代固定簇数的 KMeans)。
+
+    候选按 |IC| 降序扫描; 若某因子与**已保留**的任一因子 |corr| >= max_corr,
+    说明它只是更强因子的同义复制, 丢弃; 否则保留。
+    因子数量由相关性结构决定, 不再被"簇数"这一魔法数硬性截断。
+
+    返回 (保留因子列表(|IC| 降序), {被丢弃因子: 导致其被丢弃的已保留因子})。
+    """
+    max_corr = C.DEDUP_MAX_CORR if max_corr is None else max_corr
     cand = [c for c in candidates if c in F.columns]
     if len(cand) <= 1:
-        return cand, {c: 0 for c in cand}
+        return cand, {}
 
-    X = F[cand].copy()
-    corr = X.corr().abs().fillna(0.0).to_numpy()
-    dist = 1.0 - corr
-    np.fill_diagonal(dist, 0.0)
-
-    k = int(min(max_clusters, max(2, len(cand) // 3), len(cand)))
-    km = KMeans(n_clusters=k, n_init=10, random_state=42)
-    labels = km.fit_predict(dist)
-
-    keep, cluster_of = [], {}
-    for ci in range(k):
-        members = [cand[i] for i in range(len(cand)) if labels[i] == ci]
-        if not members:
-            continue
-        best = max(members, key=lambda c: abs(ic.get(c, 0.0)))
-        keep.append(best)
-        for m in members:
-            cluster_of[m] = ci
-    keep = sorted(keep, key=lambda c: abs(ic.get(c, 0.0)), reverse=True)
-    return keep, cluster_of
+    order = sorted(cand, key=lambda c: abs(ic.get(c, 0.0)), reverse=True)
+    corr = F[cand].corr().abs().fillna(0.0)
+    keep: List[str] = []
+    dropped_by: Dict[str, str] = {}
+    for c in order:
+        conflict = next((k for k in keep if corr.loc[c, k] >= max_corr), None)
+        if conflict is None:
+            keep.append(c)
+        else:
+            dropped_by[c] = conflict
+    return keep, dropped_by
 
 
 def select_factors(F_train: pd.DataFrame, y_train: pd.Series) -> Dict[str, object]:
     """对多头与空头分别产出因子集合与 IC 表。返回结构化结果, 便于落盘审阅。"""
     ic = compute_ic(F_train, y_train)
-    out: Dict[str, object] = {"ic": ic, "selected": {}, "dropped_by_ic": {}, "clusters": {}}
+    out: Dict[str, object] = {"ic": ic, "selected": {}, "dropped_by_ic": {}, "dropped_by_corr": {}}
     for side in ("long", "short"):
         cand = select_by_side(ic, side)
         dropped = [c for c in ic.index if c not in cand]
-        keep, clus = cluster_prune(F_train, ic, cand)
+        keep, dropped_by = corr_greedy_prune(F_train, ic, cand)
         out["selected"][side] = keep
         out["dropped_by_ic"][side] = dropped
-        out["clusters"][side] = clus
+        out["dropped_by_corr"][side] = dropped_by
     return out

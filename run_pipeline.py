@@ -5,7 +5,7 @@
 流程(严格按使用者规格):
   1. 载入清洗后的 4h 数据, 构建因子与标签
   2. 按时间切分: train 70% / OOF 15% / OOC 15%
-  3. **仅在训练段**做因子 IC 筛选 + 相关性聚类去冗余; 多空分别筛
+  3. **仅在训练段**做因子 IC 筛选 + 相关性阈值去冗余; 多空分别筛
   4. **仅在训练段**用 Purged K-Fold + Embargo 训练 LightGBM; 多空分别训练
   5. **仅在 OOF 段**优化模型层(候选配置)与执行层(阈值/止盈/止损)
   6. 冻结配置, 在 OOC 段**只跑一次、只观察, 不参与任何选择**
@@ -89,7 +89,7 @@ def main() -> None:
     print("  |IC| >= %.3f 的因子: %d / %d" % (C.IC_MIN_ABS,
                                              int((ic.abs() >= C.IC_MIN_ABS).sum()), len(ic)))
     for side in ("long", "short"):
-        print("  [%s] 聚类去冗余后保留 %d 个: %s" %
+        print("  [%s] 去冗余后保留 %d 个: %s" %
               (side, len(sel["selected"][side]), ", ".join(sel["selected"][side])))
 
     # ---------------- 4+5. 嵌套 CV: 在训练段内部选模型与执行参数
