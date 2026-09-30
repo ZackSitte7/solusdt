@@ -1,0 +1,565 @@
+{
+ "config": {
+  "SYMBOL": "SOLUSDT",
+  "INTERVAL": "4h",
+  "SOURCE": "okx",
+  "HORIZON": 3,
+  "SELECT_RULE": "min_fold",
+  "WF_FOLDS": 3,
+  "MAX_FACTORS_PER_SIDE": 10,
+  "FACTOR_RANK": "icir",
+  "DEDUP_MAX_CORR_V2": 0.85,
+  "PROTO_MODELS": [
+   "base",
+   "shallow"
+  ],
+  "PROTO_THR_GRID": [
+   0.5,
+   0.7
+  ],
+  "PROTO_TP_GRID": [
+   2.0,
+   3.0
+  ],
+  "PROTO_SL_GRID": [
+   1.5,
+   2.5
+  ],
+  "PROTO_HOLD_GRID": [
+   12,
+   24
+  ],
+  "PROTO_TRAIL_GRID": [
+   0.0,
+   2.0
+  ],
+  "FEE_RATE": 0.0005,
+  "SLIP_RATE": 0.0,
+  "INIT_CAPITAL": 1000.0,
+  "TRADE_NOTIONAL": 100.0
+ },
+ "sides": {
+  "long": {
+   "model_name": "base",
+   "factors": [
+    "vol_ratio_5_20",
+    "range_ratio",
+    "atr_ratio_chg",
+    "atr_ratio",
+    "vol_ma_ratio",
+    "bb_width_20",
+    "vol_z_20",
+    "ma_align",
+    "roc_24",
+    "pos_in_range_50"
+   ],
+   "frozen_params": {
+    "thr_q": 0.5,
+    "thr_abs": 0.011239714566549057,
+    "tp_mult": 2.0,
+    "sl_mult": 2.5,
+    "max_hold": 24,
+    "trail_mult": 0.0
+   },
+   "cv_metrics": {
+    "worst_return": 0.03225236175181623,
+    "mean_return": 0.06529832617657767,
+    "worst_sharpe": 0.6726047388057909,
+    "mean_sharpe": 1.5703352534423685,
+    "mean_n": 154.0,
+    "tp_rate": 0.5059316472310565,
+    "win_rate": 0.5538396229445753,
+    "payoff": 0.9150025233261636,
+    "n_folds": 3.0
+   },
+   "folds": [
+    {
+     "fold": 1,
+     "train_end": 2282,
+     "val_start": 2297,
+     "val_end": 4594,
+     "n_train": 2282,
+     "n_val": 2297,
+     "n_factors": 10,
+     "factors": "vol_ratio_5_20, atr_ratio, range_ratio, atr_ratio_chg, vol_ma_ratio, rv_12, hour_cos, vol_z_20, adx_14, rv_50"
+    },
+    {
+     "fold": 2,
+     "train_end": 4579,
+     "val_start": 4594,
+     "val_end": 6891,
+     "n_train": 4579,
+     "n_val": 2297,
+     "n_factors": 10,
+     "factors": "atr_ratio, vol_ratio_5_20, range_ratio, atr_ratio_chg, rv_12, hour_cos, vol_ma_ratio, rv_50, bb_width_20, adx_14"
+    },
+    {
+     "fold": 3,
+     "train_end": 6876,
+     "val_start": 6891,
+     "val_end": 9189,
+     "n_train": 6876,
+     "n_val": 2298,
+     "n_factors": 10,
+     "factors": "vol_ratio_5_20, range_ratio, rv_12, atr_ratio_chg, vol_ma_ratio, bb_width_20, hour_cos, rv_50, ma_align, vol_z_20"
+    }
+   ],
+   "factor_report": {
+    "n_candidates": 26,
+    "n_after_dedup": 13,
+    "dropped_by_ic": [
+     "ret_1",
+     "gap",
+     "close_pos_in_bar",
+     "body_ratio",
+     "mom_accel",
+     "dow_cos",
+     "ret_6",
+     "roc_6",
+     "hour_sin",
+     "lower_shadow",
+     "consec_dn",
+     "consec_up",
+     "ma_slope_50",
+     "dow_sin",
+     "ma_ratio_50",
+     "bb_pos_20",
+     "cci_20",
+     "lr_slope_20",
+     "ma_ratio_200",
+     "ret_2",
+     "macd_hist",
+     "stoch_k_14",
+     "ret_3",
+     "ret_12",
+     "roc_12",
+     "ma_ratio_20",
+     "hh_count_20",
+     "vwap_dev_20",
+     "obv_slope_20",
+     "ma_ratio_100",
+     "upper_shadow",
+     "adx_14",
+     "ll_count_20",
+     "rsi_div",
+     "pos_in_range_20"
+    ],
+    "dropped_by_icir": [],
+    "dropped_by_cap": [
+     "hour_cos",
+     "macd_signal",
+     "pos_in_range_100"
+    ]
+   },
+   "metrics": {
+    "train": {
+     "n_trades": 647.0,
+     "win_rate": 0.615146831530139,
+     "avg_win": 7.133112170604574,
+     "avg_loss": -7.666569478853645,
+     "payoff_ratio": 0.9304177298959486,
+     "profit_factor": 1.4871737208778615,
+     "avg_ret": 0.014374077954653213,
+     "total_pnl": 930.0028436660629,
+     "avg_bars": 11.664605873261205,
+     "tp_rate": 0.5595054095826894,
+     "sl_rate": 0.2751159196290572,
+     "timeout_rate": 0.16537867078825347,
+     "final_equity": 1932.5705908093569,
+     "total_return": 0.9325705908093569,
+     "sharpe": 4.106386076884565,
+     "calmar": 2.549825170246801,
+     "max_drawdown": -0.06668004165057839
+    },
+    "oof": {
+     "n_trades": 133.0,
+     "win_rate": 0.5639097744360902,
+     "avg_win": 4.858305911854841,
+     "avg_loss": -5.896246861297029,
+     "payoff_ratio": 0.8239658254040831,
+     "profit_factor": 1.0654730500914866,
+     "avg_ret": 0.0016835056717207006,
+     "total_pnl": 22.390625433885305,
+     "avg_bars": 11.458646616541353,
+     "tp_rate": 0.49624060150375937,
+     "sl_rate": 0.3458646616541353,
+     "timeout_rate": 0.15789473684210525,
+     "final_equity": 1020.8310784507643,
+     "total_return": 0.020831078450764373,
+     "sharpe": 0.6354630361932162,
+     "calmar": 0.4114274965711484,
+     "max_drawdown": -0.0563794914600213
+    },
+    "ooc": {
+     "n_trades": 125.0,
+     "win_rate": 0.528,
+     "avg_win": 3.59806742756792,
+     "avg_loss": -4.537713862239859,
+     "payoff_ratio": 0.7929251461862514,
+     "profit_factor": 0.8870010109880101,
+     "avg_ret": -0.0024202134122135255,
+     "total_pnl": -30.252667652669068,
+     "avg_bars": 11.744,
+     "tp_rate": 0.48,
+     "sl_rate": 0.36,
+     "timeout_rate": 0.16,
+     "final_equity": 969.7473323473309,
+     "total_return": -0.030252667652669096,
+     "sharpe": -1.198861213684334,
+     "calmar": -0.44939277217689144,
+     "max_drawdown": -0.07470928108545372
+    }
+   }
+  },
+  "short": {
+   "model_name": "shallow",
+   "factors": [
+    "mom_accel",
+    "hour_sin",
+    "gap",
+    "close_pos_in_bar",
+    "body_ratio",
+    "ret_1",
+    "dow_cos",
+    "dow_sin",
+    "consec_up",
+    "consec_dn"
+   ],
+   "frozen_params": {
+    "thr_q": 0.7,
+    "thr_abs": 0.09556278498190365,
+    "tp_mult": 2.0,
+    "sl_mult": 2.5,
+    "max_hold": 24,
+    "trail_mult": 0.0
+   },
+   "cv_metrics": {
+    "worst_return": -0.0691893809543378,
+    "mean_return": -0.01869801945319416,
+    "worst_sharpe": -1.633402017229576,
+    "mean_sharpe": -0.4376195329243335,
+    "mean_n": 168.66666666666666,
+    "tp_rate": 0.4765274004601709,
+    "win_rate": 0.5456617973385905,
+    "payoff": 0.8064441972696529,
+    "n_folds": 3.0
+   },
+   "folds": [
+    {
+     "fold": 1,
+     "train_end": 2282,
+     "val_start": 2297,
+     "val_end": 4594,
+     "n_train": 2282,
+     "n_val": 2297,
+     "n_factors": 10,
+     "factors": "ma_ratio_200, roc_6, vwap_dev_20, stoch_k_14, macd_hist, lr_slope_20, rsi_div, dow_cos, close_pos_in_bar, obv_slope_20"
+    },
+    {
+     "fold": 2,
+     "train_end": 4579,
+     "val_start": 4594,
+     "val_end": 6891,
+     "n_train": 4579,
+     "n_val": 2297,
+     "n_factors": 10,
+     "factors": "mom_accel, close_pos_in_bar, stoch_k_14, consec_up, body_ratio, ma_ratio_200, vwap_dev_20, ret_1, gap, consec_dn"
+    },
+    {
+     "fold": 3,
+     "train_end": 6876,
+     "val_start": 6891,
+     "val_end": 9189,
+     "n_train": 6876,
+     "n_val": 2298,
+     "n_factors": 10,
+     "factors": "mom_accel, close_pos_in_bar, hour_sin, gap, body_ratio, ret_1, stoch_k_14, consec_up, dow_sin, ll_count_20"
+    }
+   ],
+   "factor_report": {
+    "n_candidates": 13,
+    "n_after_dedup": 11,
+    "dropped_by_ic": [
+     "range_ratio",
+     "vol_ma_ratio",
+     "atr_ratio_chg",
+     "rv_12",
+     "vol_z_20",
+     "rv_20",
+     "vol_ratio_5_20",
+     "quote_vol_z_20",
+     "atr_ratio",
+     "parkinson_20",
+     "bb_width_20",
+     "roc_24",
+     "ret_24",
+     "rv_50",
+     "macd_signal",
+     "ma_align",
+     "ma_slope_20",
+     "macd",
+     "pos_in_range_50",
+     "rsi_28",
+     "trend_strength_50",
+     "ret_48",
+     "lr_slope_50",
+     "ma_slope_50",
+     "rsi_14",
+     "ma_ratio_50",
+     "bb_pos_20",
+     "pos_in_range_100",
+     "hour_cos",
+     "cci_20",
+     "lr_slope_20",
+     "ma_ratio_200",
+     "ret_2",
+     "macd_hist",
+     "stoch_k_14",
+     "ret_3",
+     "ret_12",
+     "roc_12",
+     "ma_ratio_20",
+     "hh_count_20",
+     "vwap_dev_20",
+     "obv_slope_20",
+     "ma_ratio_100",
+     "upper_shadow",
+     "adx_14",
+     "ll_count_20",
+     "rsi_div",
+     "pos_in_range_20"
+    ],
+    "dropped_by_icir": [],
+    "dropped_by_cap": [
+     "lower_shadow"
+    ]
+   },
+   "metrics": {
+    "train": {
+     "n_trades": 730.0,
+     "win_rate": 0.5123287671232877,
+     "avg_win": 6.623858735628721,
+     "avg_loss": -8.649348654397011,
+     "payoff_ratio": 0.7658216821056687,
+     "profit_factor": 0.8045430031110115,
+     "avg_ret": -0.008244451422468416,
+     "total_pnl": -601.8449538401942,
+     "avg_bars": 11.578082191780823,
+     "tp_rate": 0.44931506849315067,
+     "sl_rate": 0.40684931506849314,
+     "timeout_rate": 0.14383561643835616,
+     "final_equity": 400.16842522296236,
+     "total_return": -0.5998315747770376,
+     "sharpe": -2.349331942050073,
+     "calmar": -0.3121942264727628,
+     "max_drawdown": -0.628127948495474
+    },
+    "oof": {
+     "n_trades": 160.0,
+     "win_rate": 0.54375,
+     "avg_win": 4.904776981227142,
+     "avg_loss": -5.814140308593234,
+     "payoff_ratio": 0.8435945334820931,
+     "profit_factor": 1.0053797864786589,
+     "avg_ret": 0.0001427096774659513,
+     "total_pnl": 2.283354839455228,
+     "avg_bars": 11.43125,
+     "tp_rate": 0.475,
+     "sl_rate": 0.3875,
+     "timeout_rate": 0.1375,
+     "final_equity": 1003.6145906346081,
+     "total_return": 0.003614590634608117,
+     "sharpe": 0.11956969316466186,
+     "calmar": 0.03894644505767971,
+     "max_drawdown": -0.10324705887745567
+    },
+    "ooc": {
+     "n_trades": 153.0,
+     "win_rate": 0.5620915032679739,
+     "avg_win": 3.83663856297162,
+     "avg_loss": -4.776147566443453,
+     "payoff_ratio": 0.8032914623340593,
+     "profit_factor": 1.0310905337422254,
+     "avg_ret": 0.0006502633636501894,
+     "total_pnl": 9.949029463847893,
+     "avg_bars": 11.875816993464053,
+     "tp_rate": 0.48366013071895425,
+     "sl_rate": 0.37254901960784315,
+     "timeout_rate": 0.1437908496732026,
+     "final_equity": 1009.9490294638479,
+     "total_return": 0.009949029463847792,
+     "sharpe": 0.39239002280288515,
+     "calmar": 0.1769574092632126,
+     "max_drawdown": -0.06253603524044293
+    }
+   }
+  }
+ },
+ "segments": [
+  {
+   "side": "long",
+   "seg": "train",
+   "total_return": 0.9325705908093569,
+   "sharpe": 4.106386076884565,
+   "calmar": 2.549825170246801,
+   "max_drawdown": -0.06668004165057839,
+   "win_rate": 0.615146831530139,
+   "payoff_ratio": 0.9304177298959486,
+   "n_trades": 647.0,
+   "tp_rate": 0.5595054095826894,
+   "sl_rate": 0.2751159196290572,
+   "timeout_rate": 0.16537867078825347
+  },
+  {
+   "side": "long",
+   "seg": "oof",
+   "total_return": 0.020831078450764373,
+   "sharpe": 0.6354630361932162,
+   "calmar": 0.4114274965711484,
+   "max_drawdown": -0.0563794914600213,
+   "win_rate": 0.5639097744360902,
+   "payoff_ratio": 0.8239658254040831,
+   "n_trades": 133.0,
+   "tp_rate": 0.49624060150375937,
+   "sl_rate": 0.3458646616541353,
+   "timeout_rate": 0.15789473684210525
+  },
+  {
+   "side": "long",
+   "seg": "ooc",
+   "total_return": -0.030252667652669096,
+   "sharpe": -1.198861213684334,
+   "calmar": -0.44939277217689144,
+   "max_drawdown": -0.07470928108545372,
+   "win_rate": 0.528,
+   "payoff_ratio": 0.7929251461862514,
+   "n_trades": 125.0,
+   "tp_rate": 0.48,
+   "sl_rate": 0.36,
+   "timeout_rate": 0.16
+  },
+  {
+   "side": "short",
+   "seg": "train",
+   "total_return": -0.5998315747770376,
+   "sharpe": -2.349331942050073,
+   "calmar": -0.3121942264727628,
+   "max_drawdown": -0.628127948495474,
+   "win_rate": 0.5123287671232877,
+   "payoff_ratio": 0.7658216821056687,
+   "n_trades": 730.0,
+   "tp_rate": 0.44931506849315067,
+   "sl_rate": 0.40684931506849314,
+   "timeout_rate": 0.14383561643835616
+  },
+  {
+   "side": "short",
+   "seg": "oof",
+   "total_return": 0.003614590634608117,
+   "sharpe": 0.11956969316466186,
+   "calmar": 0.03894644505767971,
+   "max_drawdown": -0.10324705887745567,
+   "win_rate": 0.54375,
+   "payoff_ratio": 0.8435945334820931,
+   "n_trades": 160.0,
+   "tp_rate": 0.475,
+   "sl_rate": 0.3875,
+   "timeout_rate": 0.1375
+  },
+  {
+   "side": "short",
+   "seg": "ooc",
+   "total_return": 0.009949029463847792,
+   "sharpe": 0.39239002280288515,
+   "calmar": 0.1769574092632126,
+   "max_drawdown": -0.06253603524044293,
+   "win_rate": 0.5620915032679739,
+   "payoff_ratio": 0.8032914623340593,
+   "n_trades": 153.0,
+   "tp_rate": 0.48366013071895425,
+   "sl_rate": 0.37254901960784315,
+   "timeout_rate": 0.1437908496732026
+  }
+ ],
+ "bootstrap_ooc": {
+  "long": {
+   "n": 125,
+   "total": -30.252667652669068,
+   "lo": -140.01715228014305,
+   "hi": 75.96354557990365,
+   "p_pos": 0.3065
+  },
+  "short": {
+   "n": 153,
+   "total": 9.949029463847893,
+   "lo": -102.73550033028954,
+   "hi": 121.66258572091093,
+   "p_pos": 0.572
+  }
+ },
+ "consistency": {
+  "n_fail": 0,
+  "checks": [
+   {
+    "check": "数据切分 70/15/15",
+    "pass": true,
+    "detail": "train 9189 / oof 1969 / ooc 1970"
+   },
+   {
+    "check": "三段严格时序不重叠",
+    "pass": true,
+    "detail": "train[0,9189) oof[9189,11158) ooc[11158,13128)"
+   },
+   {
+    "check": "前推折时序 + purge/embargo(>=15 根)",
+    "pass": true,
+    "detail": "long折1 train<2282 val[2297,4594) | long折2 train<4579 val[4594,6891) | long折3 train<6876 val[6891,9189) | short折1 train<2282 val[2297,4594) | short折2 train<4579 val[4594,6891) | short折3 train<6876 val[6891,9189)"
+   },
+   {
+    "check": "选择只发生在 train 内部(OOF/OOC 未被读取)",
+    "pass": true,
+    "detail": "选择段最远到 9189, train 止于 9189, OOF 起于 9189 -> OOF/OOC 从未进入选择"
+   },
+   {
+    "check": "阈值来自选择阶段, 非评估段自身分位",
+    "pass": true,
+    "detail": "long: 冻结 +0.011240 vs OOF自身分位 +0.007966 (差 +0.003273); short: 冻结 +0.095563 vs OOF自身分位 +0.032005 (差 +0.063557) —— 评估一律使用左侧冻结值"
+   },
+   {
+    "check": "信号由绝对阈值决定(无分位回看)",
+    "pass": true,
+    "detail": "6 段信号数复核一致(最大偏差 0), 共 1948 笔"
+   },
+   {
+    "check": "成本口径 = 单边 5bp / 双边 10bp",
+    "pass": true,
+    "detail": "逐笔复核 1948 笔, 不一致 0 笔"
+   },
+   {
+    "check": "资金口径 1000 本金 / 单笔 100",
+    "pass": true,
+    "detail": "INIT_CAPITAL=1000 TRADE_NOTIONAL=100"
+   },
+   {
+    "check": "信号 t 收盘 -> t+1 开盘成交(无未来函数)",
+    "pass": true,
+    "detail": "全部 1948 笔成交价 == open[entry_idx], 不一致 0 笔"
+   },
+   {
+    "check": "多空独立: 因子集与执行参数各自冻结",
+    "pass": true,
+    "detail": "long 10 因子 / short 10 因子; long(tp=2.0,sl=2.5,hold=24,trail=0.0) short(tp=2.0,sl=2.5,hold=24,trail=0.0)"
+   },
+   {
+    "check": "因子数受硬上限约束",
+    "pass": true,
+    "detail": "上限 10; 实际 long=10 short=10"
+   },
+   {
+    "check": "跟踪止损单向移动(从不反向放宽)",
+    "pass": true,
+    "detail": "long: 止损成交 269 笔, 比初始止损更松的 0 笔(未启用) | short: 止损成交 416 笔, 比初始止损更松的 0 笔(未启用)"
+   }
+  ]
+ }
+}

@@ -158,16 +158,23 @@ def optimize_on_oof(F: pd.DataFrame, y: pd.Series, factors: List[str], side: str
 
 
 # ================================================ 主路径扩展: OOF 外层扫描(去冗余 × 持有期)
-def _exec_grid_oof() -> List[dict]:
-    """OOF 外层扫描用的执行网格: 阈值分位 × 止盈 × 止损 × **最长持有期**。"""
-    return [dict(thr_q=q, tp_mult=tp, sl_mult=sl, max_hold=h)
+def _exec_grid_oof(tp_gt_sl: bool = False) -> List[dict]:
+    """OOF 外层扫描用的执行网格: 阈值分位 × 止盈 × 止损 × **最长持有期**。
+
+    tp_gt_sl=True 时只保留 `tp_mult > sl_mult` 的组合(v3 的风险报酬比 > 1 约束)。
+    """
+    grid = [dict(thr_q=q, tp_mult=tp, sl_mult=sl, max_hold=h)
             for q, tp, sl, h in product(C.EXEC_THR_GRID, C.TP_ATR_GRID,
                                         C.SL_ATR_GRID, C.OOF_HOLD_GRID)]
+    if tp_gt_sl:
+        grid = [g for g in grid if g["tp_mult"] > g["sl_mult"]]
+    return grid
 
 
 def optimize_full_on_oof(F: pd.DataFrame, y: pd.Series, factor_sets: Dict[float, List[str]],
                          side: str, ohlc: dict, atr: np.ndarray, times: np.ndarray,
                          train_slice: slice, oof_slice: slice,
+                         tp_gt_sl: bool = False,
                          verbose: bool = True) -> Tuple[dict, pd.DataFrame, pd.DataFrame]:
     """在 **OOF** 上做两阶段选优, 训练只用 train、选择只用 OOF。
 
@@ -175,11 +182,13 @@ def optimize_full_on_oof(F: pd.DataFrame, y: pd.Series, factor_sets: Dict[float,
     内层: 阈值分位 × 止盈 × 止损 × 最长持有期。
     每个外层组合都用 train 段**重新筛因子并重新训练**, 避免"因子集"成为未优化的死参数。
 
+    tp_gt_sl=True 时内层网格只保留 **止盈幅度 > 止损幅度** 的组合(v3 约束)。
+
     factor_sets: {去冗余阈值: 该方向的因子列表}(由 factor_select 在 train 上产出)
-    返回 (best, agg, raw, trained); trained[(dedup, model_name)] 供冻结时取回模型。
+    返回 (best, agg, raw); trained[(dedup, model_name)] 供冻结时取回模型。
     """
     ts, te = train_slice.start, train_slice.stop
-    grid = _exec_grid_oof()
+    grid = _exec_grid_oof(tp_gt_sl=tp_gt_sl)
     rows: List[dict] = []
     trained: Dict[Tuple[float, str], models.TrainedModel] = {}
 

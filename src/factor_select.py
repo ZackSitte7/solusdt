@@ -99,3 +99,81 @@ def select_factors(F_train: pd.DataFrame, y_train: pd.Series) -> Dict[str, objec
         out["dropped_by_ic"][side] = dropped
         out["dropped_by_corr"][side] = dropped_by
     return out
+
+
+# ================================================================ v2: ICIR 排序 + 因子数上限
+def compute_icir(F: pd.DataFrame, y: pd.Series, n_blocks: int = None) -> pd.DataFrame:
+    """按时间分块算 IC 的均值与标准差, 得到 ICIR = mean(IC)/std(IC)。
+
+    为什么不用单体 |IC|: |IC| 排名靠前的因子常常只是"某一时间段的噪声尖峰", 跨期不稳定。
+    ICIR 惩罚折间波动, 天然偏向**持续有效**的因子。要求至少 3 个块有有效 IC。
+    返回 DataFrame(index=因子, columns=[ic, ic_std, icir, n_block]), 按 |icir| 降序。
+    """
+    n_blocks = C.ICIR_BLOCKS if n_blocks is None else n_blocks
+    n = len(F)
+    edges = np.linspace(0, n, n_blocks + 1).astype(int)
+    per = {}
+    for c in F.columns:
+        vals = []
+        for b in range(n_blocks):
+            s = pd.concat([F[c].iloc[edges[b]:edges[b + 1]], y.iloc[edges[b]:edges[b + 1]]],
+                          axis=1).dropna()
+            vals.append(s.iloc[:, 0].corr(s.iloc[:, 1], method="spearman")
+                        if len(s) > 30 else np.nan)
+        per[c] = np.array(vals, dtype=float)
+    rows = []
+    for c, v in per.items():
+        ok = v[np.isfinite(v)]
+        ic = float(ok.mean()) if len(ok) else np.nan
+        sd = float(ok.std(ddof=1)) if len(ok) > 1 else np.nan
+        icir = ic / sd if sd and np.isfinite(sd) and sd > 0 else np.nan
+        rows.append(dict(factor=c, ic=ic, ic_std=sd, icir=icir, n_block=len(ok)))
+    g = pd.DataFrame(rows)
+    g = g[g["n_block"] >= 3].copy()
+    g["abs_icir"] = g["icir"].abs()
+    return g.sort_values("abs_icir", ascending=False).reset_index(drop=True)
+
+
+def select_factors_robust(F_train: pd.DataFrame, y_train: pd.Series, side: str,
+                          max_factors: int = None, max_corr: float = None,
+                          min_abs_ic: float = None, min_abs_icir: float = None,
+                          rank_by: str = None) -> Dict[str, object]:
+    """v2 因子筛选: |IC| 与 |ICIR| 双阈值 -> 贪心去冗余 -> **因子数硬上限**。
+
+    与 v1 `select_factors` 的差别(见 config.py 的"抗过拟合选择协议"注释):
+      1. 排序依据可为 ICIR(默认), 更看重跨期稳定性;
+      2. 最终因子数被 MAX_FACTORS_PER_SIDE 硬性截断 —— v1 会出现 25 个因子,
+         而 OOF 选优每次都挑最宽的那档, 属过拟合特征。
+    """
+    max_factors = C.MAX_FACTORS_PER_SIDE if max_factors is None else max_factors
+    max_corr = C.DEDUP_MAX_CORR_V2 if max_corr is None else max_corr
+    min_abs_ic = C.IC_MIN_ABS if min_abs_ic is None else min_abs_ic
+    min_abs_icir = C.ICIR_MIN_ABS if min_abs_icir is None else min_abs_icir
+    rank_by = C.FACTOR_RANK if rank_by is None else rank_by
+
+    tab = compute_icir(F_train, y_train)
+    if side == "long":
+        cand_tab = tab[tab["ic"] >= min_abs_ic]
+    else:
+        cand_tab = tab[tab["ic"] <= -min_abs_ic]
+    dropped_by_ic = [f for f in tab["factor"] if f not in set(cand_tab["factor"])]
+
+    if rank_by == "icir":
+        cand_tab = cand_tab[cand_tab["abs_icir"] >= min_abs_icir]
+        dropped_icir = [f for f in tab["factor"] if f not in set(cand_tab["factor"])
+                        and f not in set(dropped_by_ic)]
+        order = cand_tab["factor"].tolist()          # 已按 |icir| 降序
+        icser = pd.Series(cand_tab["ic"].to_numpy(), index=cand_tab["factor"].to_numpy())
+    else:
+        dropped_icir = []
+        order = cand_tab.sort_values("ic", key=lambda s: s.abs(), ascending=False)["factor"].tolist()
+        icser = pd.Series(cand_tab["ic"].to_numpy(), index=cand_tab["factor"].to_numpy())
+
+    keep, dropped_by = corr_greedy_prune(F_train, icser, order, max_corr=max_corr)
+    kept_capped = keep[:max_factors]
+    dropped_by_cap = keep[max_factors:]
+    return {"selected": kept_capped, "rank_table": tab, "rank_by": rank_by,
+            "dropped_by_ic": dropped_by_ic, "dropped_by_icir": dropped_icir,
+            "dropped_by_corr": dropped_by, "dropped_by_cap": dropped_by_cap,
+            "n_candidates": len(order), "n_after_dedup": len(keep),
+            "max_factors": max_factors}

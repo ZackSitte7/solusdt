@@ -28,12 +28,12 @@ reports/
 !data/solusdt_4h_clean.parquet
 !data/solusdt_4h_clean_okx.parquet
 
-# ---- 例外: 回测报告随仓库分发(见 run_backtest_okx.py) ----
+# ---- 例外: 回测报告随仓库分发(见 run_backtest_okx.py / _v2.py / _v3.py) ----
 !reports/
-!reports/*.md
-!reports/*.json
-!reports/*.csv
-!reports/*.png
+!reports/**/*.md
+!reports/**/*.json
+!reports/**/*.csv
+!reports/**/*.png
 
 # ---- 敏感信息: 一律不得入库 ----
 .env

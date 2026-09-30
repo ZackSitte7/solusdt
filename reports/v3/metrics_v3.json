@@ -1,0 +1,404 @@
+{
+ "config": {
+  "SYMBOL": "SOLUSDT",
+  "INTERVAL": "4h",
+  "SOURCE": "okx",
+  "HORIZON": 3,
+  "SELECT_ON": "oof",
+  "V3_ENFORCE_TP_GT_SL": true,
+  "OBJECTIVE_PRIMARY": "total_return",
+  "OBJECTIVE_SECONDARY": "sharpe",
+  "OOF_DEDUP_CORR_GRID": [
+   0.8,
+   0.85,
+   0.9,
+   0.95
+  ],
+  "EXEC_THR_GRID": [
+   0.4,
+   0.5,
+   0.6,
+   0.7,
+   0.8
+  ],
+  "TP_ATR_GRID": [
+   1.0,
+   1.5,
+   2.0,
+   2.5,
+   3.0,
+   4.0
+  ],
+  "SL_ATR_GRID": [
+   0.5,
+   0.75,
+   1.0,
+   1.5,
+   2.0,
+   2.5
+  ],
+  "OOF_HOLD_GRID": [
+   6,
+   12,
+   24
+  ],
+  "FEE_RATE": 0.0005,
+  "SLIP_RATE": 0.0,
+  "INIT_CAPITAL": 1000.0,
+  "TRADE_NOTIONAL": 100.0
+ },
+ "sides": {
+  "long": {
+   "model_name": "shallow",
+   "factors": [
+    "vol_ratio_5_20",
+    "range_ratio",
+    "atr_ratio_chg",
+    "rv_12",
+    "atr_ratio",
+    "parkinson_20",
+    "ma_align",
+    "vol_ma_ratio",
+    "rv_50",
+    "bb_width_20",
+    "vol_z_20",
+    "pos_in_range_100",
+    "ret_24",
+    "ma_slope_50",
+    "macd_signal",
+    "pos_in_range_50",
+    "rsi_28",
+    "lr_slope_50",
+    "ma_ratio_200",
+    "ma_slope_20",
+    "ma_ratio_100",
+    "ma_ratio_50",
+    "rsi_14",
+    "hour_cos",
+    "bb_pos_20"
+   ],
+   "frozen_params": {
+    "dedup": 0.95,
+    "thr_q": 0.4,
+    "thr_abs": 0.020269252097180748,
+    "tp_mult": 2.5,
+    "sl_mult": 1.5,
+    "max_hold": 24
+   },
+   "oof_metrics": {
+    "n": 138.0,
+    "sharpe": 2.1488161869091584,
+    "total_return": 0.06407145321378138,
+    "calmar": 2.0709846745335896,
+    "max_drawdown": -0.034531562456890375,
+    "win_rate": 0.4492753623188406,
+    "payoff": 1.483185300886977,
+    "tp_rate": 0.391304347826087
+   },
+   "metrics": {
+    "train": {
+     "n_trades": 641.0,
+     "win_rate": 0.49297971918876754,
+     "avg_win": 8.754231347056093,
+     "avg_loss": -5.701958456176743,
+     "payoff_ratio": 1.5353025481223779,
+     "profit_factor": 1.4927864775589887,
+     "avg_ret": 0.014246499335605046,
+     "total_pnl": 913.2006074122835,
+     "avg_bars": 10.187207488299531,
+     "tp_rate": 0.4243369734789392,
+     "sl_rate": 0.46489859594383776,
+     "timeout_rate": 0.11076443057722309,
+     "final_equity": 1913.905407084101,
+     "total_return": 0.9139054070841008,
+     "sharpe": 3.9253038398072087,
+     "calmar": 3.2502691809499282,
+     "max_drawdown": -0.05147859663509813
+    },
+    "oof": {
+     "n_trades": 138.0,
+     "win_rate": 0.4492753623188406,
+     "avg_win": 5.988173075775171,
+     "avg_loss": -4.037373531273613,
+     "payoff_ratio": 1.483185300886977,
+     "profit_factor": 1.2099669559867445,
+     "avg_ret": 0.0046685755305265215,
+     "total_pnl": 64.42634232126599,
+     "avg_bars": 8.898550724637682,
+     "tp_rate": 0.391304347826087,
+     "sl_rate": 0.5289855072463768,
+     "timeout_rate": 0.07971014492753623,
+     "final_equity": 1064.0714532137813,
+     "total_return": 0.06407145321378138,
+     "sharpe": 2.1488161869091584,
+     "calmar": 2.0709846745335896,
+     "max_drawdown": -0.034531562456890375
+    },
+    "ooc": {
+     "n_trades": 135.0,
+     "win_rate": 0.37777777777777777,
+     "avg_win": 4.325187748584251,
+     "avg_loss": -3.1742656963814486,
+     "payoff_ratio": 1.3625789906354762,
+     "profit_factor": 0.8272801014572534,
+     "avg_ret": -0.003411388393944062,
+     "total_pnl": -46.05374331824483,
+     "avg_bars": 8.792592592592593,
+     "tp_rate": 0.32592592592592595,
+     "sl_rate": 0.6148148148148148,
+     "timeout_rate": 0.05925925925925926,
+     "final_equity": 953.9462566817552,
+     "total_return": -0.046053743318244744,
+     "sharpe": -1.9133983431965762,
+     "calmar": -0.6423022311588852,
+     "max_drawdown": -0.07950044226195396
+    }
+   }
+  },
+  "short": {
+   "model_name": "base",
+   "factors": [
+    "mom_accel",
+    "hour_sin",
+    "gap",
+    "ret_6",
+    "close_pos_in_bar",
+    "ret_1",
+    "body_ratio",
+    "dow_cos",
+    "dow_sin",
+    "lower_shadow",
+    "consec_up",
+    "consec_dn"
+   ],
+   "frozen_params": {
+    "dedup": 0.9,
+    "thr_q": 0.5,
+    "thr_abs": 0.020354141462207622,
+    "tp_mult": 2.5,
+    "sl_mult": 2.0,
+    "max_hold": 12
+   },
+   "oof_metrics": {
+    "n": 175.0,
+    "sharpe": 3.105504685121511,
+    "total_return": 0.10438528862843421,
+    "calmar": 2.692359508943236,
+    "max_drawdown": -0.0433677461408527,
+    "win_rate": 0.52,
+    "payoff": 1.2159488919672679,
+    "tp_rate": 0.30857142857142855
+   },
+   "metrics": {
+    "train": {
+     "n_trades": 761.0,
+     "win_rate": 0.5216819973718791,
+     "avg_win": 5.9242844527179335,
+     "avg_loss": -5.7371313958496915,
+     "payoff_ratio": 1.0326213649217848,
+     "profit_factor": 1.1262381370163423,
+     "avg_ret": 0.0034641931621515417,
+     "total_pnl": 263.6250996397323,
+     "avg_bars": 8.972404730617608,
+     "tp_rate": 0.290407358738502,
+     "sl_rate": 0.3272010512483574,
+     "timeout_rate": 0.3823915900131406,
+     "final_equity": 1261.4534902070002,
+     "total_return": 0.26145349020700026,
+     "sharpe": 1.2290270592787966,
+     "calmar": 0.34346005540012164,
+     "max_drawdown": -0.16571368604689807
+    },
+    "oof": {
+     "n_trades": 175.0,
+     "win_rate": 0.52,
+     "avg_win": 4.7280841448462585,
+     "avg_loss": -3.8883905204245495,
+     "payoff_ratio": 1.2159488919672679,
+     "profit_factor": 1.3172779662978735,
+     "avg_ret": 0.00592176305516271,
+     "total_pnl": 103.63085346534744,
+     "avg_bars": 9.005714285714285,
+     "tp_rate": 0.30857142857142855,
+     "sl_rate": 0.30857142857142855,
+     "timeout_rate": 0.38285714285714284,
+     "final_equity": 1104.3852886284342,
+     "total_return": 0.10438528862843421,
+     "sharpe": 3.105504685121511,
+     "calmar": 2.692359508943236,
+     "max_drawdown": -0.0433677461408527
+    },
+    "ooc": {
+     "n_trades": 174.0,
+     "win_rate": 0.47126436781609193,
+     "avg_win": 3.695819414429568,
+     "avg_loss": -3.284234764233019,
+     "payoff_ratio": 1.1253213243702656,
+     "profit_factor": 1.003003789112628,
+     "avg_ret": 5.216055596476003e-05,
+     "total_pnl": 0.90759367378684,
+     "avg_bars": 8.908045977011493,
+     "tp_rate": 0.25862068965517243,
+     "sl_rate": 0.3850574712643678,
+     "timeout_rate": 0.3563218390804598,
+     "final_equity": 1000.9075936737868,
+     "total_return": 0.0009075936737867885,
+     "sharpe": 0.050081247113744655,
+     "calmar": 0.02167839143834564,
+     "max_drawdown": -0.046544063611406394
+    }
+   }
+  }
+ },
+ "segments": [
+  {
+   "side": "long",
+   "seg": "train",
+   "total_return": 0.9139054070841008,
+   "sharpe": 3.9253038398072087,
+   "calmar": 3.2502691809499282,
+   "max_drawdown": -0.05147859663509813,
+   "win_rate": 0.49297971918876754,
+   "payoff_ratio": 1.5353025481223779,
+   "n_trades": 641.0,
+   "tp_rate": 0.4243369734789392,
+   "sl_rate": 0.46489859594383776,
+   "timeout_rate": 0.11076443057722309
+  },
+  {
+   "side": "long",
+   "seg": "oof",
+   "total_return": 0.06407145321378138,
+   "sharpe": 2.1488161869091584,
+   "calmar": 2.0709846745335896,
+   "max_drawdown": -0.034531562456890375,
+   "win_rate": 0.4492753623188406,
+   "payoff_ratio": 1.483185300886977,
+   "n_trades": 138.0,
+   "tp_rate": 0.391304347826087,
+   "sl_rate": 0.5289855072463768,
+   "timeout_rate": 0.07971014492753623
+  },
+  {
+   "side": "long",
+   "seg": "ooc",
+   "total_return": -0.046053743318244744,
+   "sharpe": -1.9133983431965762,
+   "calmar": -0.6423022311588852,
+   "max_drawdown": -0.07950044226195396,
+   "win_rate": 0.37777777777777777,
+   "payoff_ratio": 1.3625789906354762,
+   "n_trades": 135.0,
+   "tp_rate": 0.32592592592592595,
+   "sl_rate": 0.6148148148148148,
+   "timeout_rate": 0.05925925925925926
+  },
+  {
+   "side": "short",
+   "seg": "train",
+   "total_return": 0.26145349020700026,
+   "sharpe": 1.2290270592787966,
+   "calmar": 0.34346005540012164,
+   "max_drawdown": -0.16571368604689807,
+   "win_rate": 0.5216819973718791,
+   "payoff_ratio": 1.0326213649217848,
+   "n_trades": 761.0,
+   "tp_rate": 0.290407358738502,
+   "sl_rate": 0.3272010512483574,
+   "timeout_rate": 0.3823915900131406
+  },
+  {
+   "side": "short",
+   "seg": "oof",
+   "total_return": 0.10438528862843421,
+   "sharpe": 3.105504685121511,
+   "calmar": 2.692359508943236,
+   "max_drawdown": -0.0433677461408527,
+   "win_rate": 0.52,
+   "payoff_ratio": 1.2159488919672679,
+   "n_trades": 175.0,
+   "tp_rate": 0.30857142857142855,
+   "sl_rate": 0.30857142857142855,
+   "timeout_rate": 0.38285714285714284
+  },
+  {
+   "side": "short",
+   "seg": "ooc",
+   "total_return": 0.0009075936737867885,
+   "sharpe": 0.050081247113744655,
+   "calmar": 0.02167839143834564,
+   "max_drawdown": -0.046544063611406394,
+   "win_rate": 0.47126436781609193,
+   "payoff_ratio": 1.1253213243702656,
+   "n_trades": 174.0,
+   "tp_rate": 0.25862068965517243,
+   "sl_rate": 0.3850574712643678,
+   "timeout_rate": 0.3563218390804598
+  }
+ ],
+ "consistency": {
+  "n_fail": 0,
+  "checks": [
+   {
+    "check": "数据切分 70/15/15",
+    "pass": true,
+    "detail": "train 9189 / oof 1969 / ooc 1970"
+   },
+   {
+    "check": "三段严格时序不重叠",
+    "pass": true,
+    "detail": "train[0,9189) oof[9189,11158) ooc[11158,13128)"
+   },
+   {
+    "check": "选择只发生在 OOF(OOC 未被读取)",
+    "pass": true,
+    "detail": "选择段为 OOF[9189,11158); OOC[11158,13128) 全程未参与"
+   },
+   {
+    "check": "止盈/止损硬约束 tp > sl",
+    "pass": true,
+    "detail": "long tp=2.50>sl=1.50 | short tp=2.50>sl=2.00"
+   },
+   {
+    "check": "止盈止损为 ATR 倍数",
+    "pass": true,
+    "detail": "tp/sl 均为 ATR 的倍数(见 src/execution.py simulate_signals)"
+   },
+   {
+    "check": "阈值由 OOF 冻结, 非 OOC 自身分位",
+    "pass": true,
+    "detail": "long: 冻结(OOF) +0.020269 vs OOC自身分位 +0.024666; short: 冻结(OOF) +0.020354 vs OOC自身分位 +0.018690"
+   },
+   {
+    "check": "OOF 冻结评估与网格最优一致",
+    "pass": true,
+    "detail": "long: 网格 6.41%/夏普2.15 vs 复评 6.41%/夏普2.15; short: 网格 10.44%/夏普3.11 vs 复评 10.44%/夏普3.11"
+   },
+   {
+    "check": "信号由冻结绝对阈值决定(无分位回看)",
+    "pass": true,
+    "detail": "6 段信号数复核一致(最大偏差 0), 共 2024 笔"
+   },
+   {
+    "check": "成本口径 = 单边 5bp / 双边 10bp",
+    "pass": true,
+    "detail": "逐笔复核 2024 笔, 不一致 0 笔"
+   },
+   {
+    "check": "资金口径 1000 本金 / 单笔 100",
+    "pass": true,
+    "detail": "INIT_CAPITAL=1000 TRADE_NOTIONAL=100"
+   },
+   {
+    "check": "信号 t 收盘 -> t+1 开盘成交(无未来函数)",
+    "pass": true,
+    "detail": "全部 2024 笔成交价 == open[entry_idx], 不一致 0 笔"
+   },
+   {
+    "check": "多空独立: 因子集与执行参数各自冻结",
+    "pass": true,
+    "detail": "long 25 因子 / short 12 因子; long(tp=2.50,sl=1.50,hold=24) short(tp=2.50,sl=2.00,hold=12)"
+   }
+  ]
+ }
+}
