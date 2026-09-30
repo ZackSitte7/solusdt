@@ -20,9 +20,11 @@ reports/
 *.csv
 *.png
 
-# ---- 例外: SOL/USDT 4h 币安原始/清洗数据随仓库分发(见 src/data_fetch.py) ----
+# ---- 例外: SOL/USDT 4h 币安/欧易原始数据随仓库分发(见 src/data_fetch.py) ----
 !data/
 !data/solusdt_4h_raw_binance.parquet
+!data/solusdt_4h_raw_okx.parquet
+!data/solusdt_4h_okx_raw.json
 !data/solusdt_4h_clean.parquet
 
 # ---- 敏感信息: 一律不得入库 ----

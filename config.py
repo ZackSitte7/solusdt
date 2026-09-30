@@ -34,6 +34,7 @@ OKX_INST = "SOL-USDT"        # OKX 现货交易对
 OKX_BAR = "4H"               # OKX K线周期(4 小时)
 OKX_LIMIT = 100              # history-candles 单次请求上限(OKX 硬限制)
 OKX_DUMP = DATA_DIR / "solusdt_4h_okx_raw.json"   # 外网主机抓取的原始 JSON
+OKX_RAW_PARQUET = DATA_DIR / "solusdt_4h_raw_okx.parquet"  # 欧易规整后(离线导入产物)
 
 # 币安(Binance)官方公开数据镜像(无需 API Key; 沙箱白名单内, **可直连**)。
 # 字段比 OKX 更全(含 trades / taker_buy_*), 历史更早(SOL 上市 2020-08-11 起)。

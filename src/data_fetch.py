@@ -254,13 +254,13 @@ def main() -> None:
     print("=== 抓取 %s %s K线 (数据源: %s) ===" % (C.SYMBOL, C.INTERVAL, args.source))
     df, src = _fetch(args.source)
 
-    # 主产物: 供下游 run_pipeline.py / data_clean.py 读取。
-    df.to_parquet(C.RAW_PARQUET, index=False)
-    out = C.RAW_PARQUET
-    # 币安另存一份带来源标识的副本, 便于与 OKX 数据对照。
-    if args.source == "binance":
-        df.to_parquet(C.BINANCE_RAW_PARQUET, index=False)
-        out = C.BINANCE_RAW_PARQUET
+    # 各数据源另存一份带来源标识的副本, 便于对照。
+    per_source = {"binance": C.BINANCE_RAW_PARQUET, "okx": C.OKX_RAW_PARQUET}[args.source]
+    df.to_parquet(per_source, index=False)
+    out = per_source
+    # RAW_PARQUET 是"当前主数据源"的规范产物, 仅抓取默认源时刷新, 避免被备用源覆盖。
+    if args.source == C.SOURCE:
+        df.to_parquet(C.RAW_PARQUET, index=False)
 
     _report(df, src, out)
 
