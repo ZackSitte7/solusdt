@@ -25,10 +25,8 @@ import pandas as pd                      # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import config as C                       # noqa: E402
-from src import data_clean, factors as F_lib, factor_select, models, optimize  # noqa: E402
+from src import data_clean, factors as F_lib, factor_select, models, optimize, execution  # noqa: E402
 from src.cv import describe_split, time_split                                   # noqa: E402
-from src.execution import simulate_signals, equity_from_trades                  # noqa: E402
-from src.metrics import summarize                                               # noqa: E402
 
 pd.set_option("display.width", 200)
 
@@ -43,147 +41,128 @@ def load_data() -> pd.DataFrame:
     return df
 
 
-def evaluate_side(seg_pred: np.ndarray, ohlc: dict, atr: np.ndarray, times: np.ndarray,
-                  side: str, start: int, end: int, params: dict) -> dict:
-    """按给定执行参数, 在 [start,end) 段上评估一侧。返回指标与交易明细。"""
-    q = params["thr_q"]
-    finite = np.isfinite(seg_pred)
-    thr = float(np.nanquantile(seg_pred[finite], 1.0 - q if side == "long" else q))
-    sig = np.zeros(len(seg_pred), dtype=bool)
-    if side == "long":
-        sig[start:end] = finite[start:end] & (seg_pred[start:end] >= thr)
-    else:
-        sig[start:end] = finite[start:end] & (seg_pred[start:end] <= thr)
-    trades = simulate_signals(sig, ohlc["open"], ohlc["high"], ohlc["low"], ohlc["close"],
-                              atr, times, side, params["tp_mult"], params["sl_mult"],
-                              C.MAX_HOLD_BARS, C.TRADE_NOTIONAL)
-    eq = equity_from_trades(trades, len(seg_pred))
-    m = summarize(trades, eq[start:end])
-    m["thr"] = thr
-    return {"metrics": m, "trades": trades, "equity": eq[start:end]}
+def buy_hold(df: pd.DataFrame, seg: slice) -> float:
+    """该段的买入持有收益(基准), 用于判断模型是否真的提供了超额。"""
+    a = float(df["close"].iloc[seg.start])
+    b = float(df["close"].iloc[seg.stop - 1])
+    return b / a - 1.0
 
 
 def main() -> None:
-    print("=" * 100)
-    print("SOL/USDT 4h 多因子模型  |  目标: 未来 %d 根(=%d 小时)对数收益(回归)"
-          % (C.HORIZON, C.HORIZON * 4))
-    print("=" * 100)
+    print("=" * 104)
+    print("SOL/USDT %s 多因子模型  |  标签: 未来 %d 根(=%d 小时)收益 / ATR  [制度中性]"
+          % (C.INTERVAL, C.HORIZON, C.HORIZON * 4))
+    print("=" * 104)
 
     # ---------------- 1. 数据 + 因子
     df = load_data()
     df = F_lib.add_label(df, C.HORIZON)
     Fmat, fnames = F_lib.build_factors(df)
-    print("数据: %d 根 4h K线  %s ~ %s" %
-          (len(df), df["datetime"].iloc[0], df["datetime"].iloc[-1]))
+    print("数据: %d 根 %s K线  %s ~ %s" %
+          (len(df), C.INTERVAL, df["datetime"].iloc[0], df["datetime"].iloc[-1]))
     print("原始因子: %d 个" % len(fnames))
 
     ohlc = {k: df[k].to_numpy(dtype=float) for k in ("open", "high", "low", "close")}
-    atr = F_lib._atr(df["high"], df["low"], df["close"], C.ATR_WINDOW).to_numpy(dtype=float)
+    atr = df["atr"].to_numpy(dtype=float)
     times = df["datetime"].to_numpy()
     y = df["label"]
 
     # ---------------- 2. 切分
     sl = describe_split(len(df))
-    print("\n=== 数据切分(按时间顺序) ===")
-    for s in sl:
-        print("  %-6s 行 %5d~%5d  n=%5d  %s ~ %s" %
-              (s["name"], s["start"], s["end"] - 1, s["n"],
-               df["datetime"].iloc[s["start"]], df["datetime"].iloc[s["end"] - 1]))
     (tr, oof, ooc) = time_split(len(df))
+    print("\n=== 数据切分(按时间顺序) + 各段买入持有基准 ===")
+    for s in sl:
+        seg = slice(s["start"], s["end"])
+        bh = buy_hold(df, seg)
+        print("  %-6s 行 %5d~%5d  n=%5d  %s ~ %s   买入持有 %+8.1f%%" %
+              (s["name"], s["start"], s["end"] - 1, s["n"],
+               str(df["datetime"].iloc[s["start"]])[:16],
+               str(df["datetime"].iloc[s["end"] - 1])[:16], bh * 100))
 
     # ---------------- 3. 因子筛选(仅训练段)
-    print("\n=== 因子筛选(仅用训练段, IC=Spearman) ===")
-    Ftr = Fmat.iloc[tr]
-    ytr = y.iloc[tr]
-    sel = factor_select.select_factors(Ftr.reset_index(drop=True), ytr.reset_index(drop=True))
+    print("\n=== 因子筛选(仅用训练段, IC=Spearman, 标签已 ATR 标准化) ===")
+    sel = factor_select.select_factors(Fmat.iloc[tr].reset_index(drop=True),
+                                       y.iloc[tr].reset_index(drop=True))
     ic: pd.Series = sel["ic"]
     print("  全因子 |IC| 分位: P50=%.4f P75=%.4f P90=%.4f 最大=%.4f" %
           (ic.abs().median(), ic.abs().quantile(.75), ic.abs().quantile(.90), ic.abs().max()))
-    print("  |IC| >= %.3f 的因子: %d / %d" % (C.IC_MIN_ABS, int((ic.abs() >= C.IC_MIN_ABS).sum()), len(ic)))
+    print("  |IC| >= %.3f 的因子: %d / %d" % (C.IC_MIN_ABS,
+                                             int((ic.abs() >= C.IC_MIN_ABS).sum()), len(ic)))
     for side in ("long", "short"):
         print("  [%s] 聚类去冗余后保留 %d 个: %s" %
-              (side, len(sel["selected"][side]), ", ".join(sel["selected"][side][:12])
-               + (" ..." if len(sel["selected"][side]) > 12 else "")))
+              (side, len(sel["selected"][side]), ", ".join(sel["selected"][side])))
 
-    # ---------------- 4. 模型层优化(仅在 OOF 上比较, 训练只用训练段)
-    print("\n=== 4. 模型层: 训练段训练 -> OOF 段比较候选配置 ===")
-    eval_params = {"thr_q": 0.70, "tp_mult": 2.5, "sl_mult": 2.0}   # 仅用于模型候选比较
-    cand_best = {}
+    # ---------------- 4+5. 嵌套 CV: 在训练段内部选模型与执行参数
+    print("\n=== 嵌套 CV(训练段内部 %d 折) 选模型 x 执行参数 ===" % C.NESTED_FOLDS)
+    frozen, aggs = {}, {}
+    n_combo = len(models.MODEL_GRID) * len(C.EXEC_THR_GRID) * len(C.TP_ATR_GRID) * len(C.SL_ATR_GRID)
+    print("  候选组合: %d(模型%d x 阈值%d x 止盈%d x 止损%d) x %d 折"
+          % (n_combo, len(models.MODEL_GRID), len(C.EXEC_THR_GRID), len(C.TP_ATR_GRID),
+             len(C.SL_ATR_GRID), C.NESTED_FOLDS))
     for side in ("long", "short"):
         facs = sel["selected"][side]
         if not facs:
             print("  [%s] 无可用因子, 跳过" % side)
             continue
-        print("  [%s] 候选配置 %d 个" % (side, len(models.MODEL_GRID)))
-        best_key, best_res, best_tm = None, None, None
-        for cand in models.MODEL_GRID:
-            tm = models.train_side(Ftr, ytr, facs, side,
-                                   params=models.resolve_params(cand), verbose=False)
-            pred = tm.predict(Fmat)
-            r = evaluate_side(pred, ohlc, atr, times, side, oof.start, oof.stop, eval_params)
-            sh = r["metrics"]["sharpe"]
-            print("      %-10s OOF 夏普=%+.3f 笔数=%d" % (cand["name"], sh, r["metrics"]["n_trades"]))
-            if best_res is None or sh > best_res["metrics"]["sharpe"]:
-                best_key, best_res, best_tm = cand["name"], r, tm
-        cand_best[side] = dict(name=best_key, model=best_tm, res=best_res)
-        print("    -> [%s] 选定模型配置: %s" % (side, best_key))
+        best_model, best_exec, agg = optimize.nested_select(
+            Fmat, y, facs, side, ohlc, atr, times, tr)
+        aggs[side] = agg
+        print("  [%s] 选定: 模型=%s  阈值分位=%.2f  止盈=%.2fATR  止损=%.2fATR"
+              % (side, best_model, best_exec["thr_q"], best_exec["tp_mult"], best_exec["sl_mult"]))
+        if not agg.empty:
+            print("      各折均值 Top3:")
+            for _, r in agg.head(3).iterrows():
+                print("        %-10s q=%.1f tp=%.1f sl=%.1f -> 夏普%+.2f 收益%+.2f%% "
+                      "笔数%.0f 止盈率%.0f%% 胜率%.0f%%"
+                      % (r["model"], r["thr_q"], r["tp_mult"], r["sl_mult"], r["sharpe"],
+                         r["total_return"] * 100, r["n_trades"], r["tp_rate"] * 100,
+                         r["win_rate"] * 100))
+        # 用整个训练段重训选定模型(集成多折)
+        mc = next(m for m in models.MODEL_GRID if m["name"] == best_model)
+        tm = models.train_side(Fmat.iloc[tr], y.iloc[tr], facs, side,
+                               params=models.resolve_params(mc), verbose=False)
+        frozen[side] = dict(**best_exec, model=tm, model_name=best_model, factors=facs)
+        if agg is not None and not agg.empty:
+            agg.to_csv(C.REPORT_DIR / ("nested_cv_%s.csv" % side), index=False)
 
-    # ---------------- 5. 执行层优化(仅在 OOF)
-    print("\n=== 5. 执行层: 仅在 OOF 段网格搜索(阈值分位 x 止盈 x 止损) ===")
-    frozen = {}
-    grid_rows_total = 0
-    for side in ("long", "short"):
-        if side not in cand_best:
-            continue
-        tm = cand_best[side]["model"]
-        pred = tm.predict(Fmat)
-        g = optimize.grid_execution(pred, ohlc, atr, times, side, oof.start, oof.stop)
-        grid_rows_total += len(g)
-        if g.empty:
-            print("  [%s] 无有效组合" % side)
-            continue
-        best = optimize.pick_best(g)
-        print("  [%s] 组合 %d 个; 最优: 阈值分位=%.2f 止盈=%.1fATR 止损=%.1fATR "
-              "-> 夏普=%+.2f 净利=%.2f%% 笔数=%d 胜率=%.1f%% 盈亏比=%.2f"
-              % (side, len(g), best["thr_q"], best["tp_mult"], best["sl_mult"],
-                 best["sharpe"], best["total_return"] * 100, best["n_trades"],
-                 best["win_rate"] * 100, best["payoff_ratio"]))
-        frozen[side] = dict(thr_q=best["thr_q"], tp_mult=best["tp_mult"],
-                            sl_mult=best["sl_mult"], model=tm)
-        g.to_csv(C.REPORT_DIR / ("oof_grid_%s.csv" % side), index=False)
-
-    # ---------------- 6. 冻结后在 OOF 与 OOC 各跑一次
-    print("\n=== 6. 冻结配置 -> OOF(用于确认) 与 OOC(仅观察) ===")
+    # ---------------- 6. 冻结后在 OOF(确认) 与 OOC(仅观察) 各跑一次
+    print("\n=== 冻结配置 -> OOF(一次性确认) 与 OOC(仅观察, 不参与选择) ===")
     report = {"config": {k: getattr(C, k) for k in
-                         ("SYMBOL", "INTERVAL", "HORIZON", "TRAIN_FRAC", "OOF_FRAC",
-                          "OOC_FRAC", "CV_N_SPLITS", "CV_EMBARGO_BARS", "IC_MIN_ABS",
-                          "INIT_CAPITAL", "TRADE_NOTIONAL", "MAX_HOLD_BARS",
-                          "FEE_RATE", "SLIP_RATE")},
+                         ("SYMBOL", "INTERVAL", "HORIZON", "LABEL_MODE", "TRAIN_FRAC",
+                          "OOF_FRAC", "OOC_FRAC", "NESTED_FOLDS", "CV_EMBARGO_BARS",
+                          "IC_MIN_ABS", "INIT_CAPITAL", "TRADE_NOTIONAL",
+                          "MAX_HOLD_BARS", "FEE_RATE", "SLIP_RATE", "MIN_TP_RATE")},
               "split": sl, "sides": {}}
+    report["buy_hold"] = {s["name"]: buy_hold(df, slice(s["start"], s["end"])) for s in sl}
     curves = {}
     for side, cfg in frozen.items():
-        tm = cfg["model"]
-        pred = tm.predict(Fmat)
+        pred = cfg["model"].predict(Fmat)
         entry = {}
         for seg_name, seg in (("oof", oof), ("ooc", ooc)):
-            r = evaluate_side(pred, ohlc, atr, times, side, seg.start, seg.stop, cfg)
+            r = execution.evaluate_with_params(pred, ohlc, atr, times, side, seg.start, seg.stop,
+                                               cfg["thr_q"], cfg["tp_mult"], cfg["sl_mult"])
             entry[seg_name] = r["metrics"]
             curves["%s_%s" % (side, seg_name)] = (r["equity"], df["datetime"].iloc[seg])
         report["sides"][side] = {
-            "factors": tm.factors,
+            "model": cfg["model_name"],
+            "factors": cfg["factors"],
             "frozen_params": {k: cfg[k] for k in ("thr_q", "tp_mult", "sl_mult")},
-            "cv_rmse": tm.cv_rmse, "best_iters": tm.best_iters,
+            "cv_rmse": cfg["model"].cv_rmse,
             "oof": entry["oof"], "ooc": entry["ooc"],
         }
-        print("\n  --- %s ---" % side)
-        print("  %-6s %6s %8s %8s %8s %9s %9s %9s %9s" %
-              ("段", "笔数", "胜率%", "盈亏比", "总收益%", "夏普", "卡玛", "最大回撤%", "盈亏(USDT)"))
+        print("\n  --- %s  (模型 %s, 因子 %d 个) ---" % (side, cfg["model_name"], len(cfg["factors"])))
+        print("  %-6s %6s %7s %7s %9s %8s %8s %9s %10s %9s" %
+              ("段", "笔数", "胜率%", "盈亏比", "总收益%", "买入持有%", "夏普", "卡玛",
+               "最大回撤%", "盈亏USDT"))
         for seg_name in ("oof", "ooc"):
             m = entry[seg_name]
-            print("  %-6s %6d %8.1f %8.2f %8.2f %9.2f %9.2f %9.2f %9.2f" %
+            bh = report["buy_hold"][seg_name] * 100
+            print("  %-6s %6d %7.1f %7.2f %9.2f %10.2f %8.2f %9.2f %10.2f %9.2f" %
                   (seg_name, m["n_trades"], m["win_rate"] * 100, m["payoff_ratio"],
-                   m["total_return"] * 100, m["sharpe"], m["calmar"],
+                   m["total_return"] * 100, bh, m["sharpe"], m["calmar"],
                    m["max_drawdown"] * 100, m["total_pnl"]))
+            print("         出场构成: 止盈%.0f%% 止损%.0f%% 到期%.0f%%  平均持有%.1f根" %
+                  (m["tp_rate"] * 100, m["sl_rate"] * 100, m["timeout_rate"] * 100, m["avg_bars"]))
 
     # 合并多空权益曲线
     if curves:
@@ -204,7 +183,7 @@ def main() -> None:
         print("\n曲线已保存: %s" % (C.REPORT_DIR / "equity_curve.png"))
 
     # ---------------- 7. 落盘
-    report["disclosure"] = optimize.disclosure(grid_rows_total, 3 * 2)
+    report["disclosure"] = optimize.disclosure(n_combo, C.NESTED_FOLDS)
     (C.REPORT_DIR / "metrics.json").write_text(
         json.dumps(report, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
     ic.to_frame("ic").sort_values("ic", key=lambda s: s.abs(), ascending=False).to_csv(

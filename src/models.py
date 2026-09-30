@@ -34,6 +34,34 @@ class TrainedModel:
         return np.mean(preds, axis=0) if preds else np.full(len(F), np.nan)
 
 
+def valid_indices(F: pd.DataFrame, y: pd.Series, factors: List[str]) -> np.ndarray:
+    """因子与标签都非缺失的样本索引(全局位置)。"""
+    ok = y.notna() & F[factors].notna().all(axis=1)
+    return np.flatnonzero(ok.to_numpy())
+
+
+def train_fold(F: pd.DataFrame, y: pd.Series, factors: List[str],
+               tr_idx: np.ndarray, va_idx: np.ndarray,
+               params: Optional[dict] = None, rounds: int = None,
+               early_stop: int = None) -> lgb.Booster:
+    """在指定索引上训练单个 LightGBM; 早停用 va_idx。用于嵌套 CV 的外层折。"""
+    params = dict(C.LGBM_PARAMS_COMMON if params is None else params)
+    rounds = C.LGBM_ROUNDS if rounds is None else rounds
+    early_stop = C.LGBM_EARLY_STOP if early_stop is None else early_stop
+    X = F[factors].to_numpy(dtype=float)
+    yy = y.to_numpy(dtype=float)
+    dtr = lgb.Dataset(X[tr_idx], label=yy[tr_idx])
+    dva = lgb.Dataset(X[va_idx], label=yy[va_idx], reference=dtr)
+    return lgb.train(params, dtr, num_boost_round=rounds, valid_sets=[dva],
+                     callbacks=[lgb.early_stopping(early_stop, verbose=False),
+                                lgb.log_evaluation(0)])
+
+
+def predict_booster(booster: lgb.Booster, F: pd.DataFrame, factors: List[str]) -> np.ndarray:
+    return booster.predict(F[factors].to_numpy(dtype=float),
+                           num_iteration=booster.best_iteration or None)
+
+
 def train_side(F: pd.DataFrame, y: pd.Series, factors: List[str], side: str,
                params: Optional[dict] = None, rounds: int = None,
                early_stop: int = None, verbose: bool = True) -> TrainedModel:

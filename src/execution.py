@@ -99,6 +99,39 @@ def simulate_signals(signals: np.ndarray, o: np.ndarray, h: np.ndarray, l: np.nd
     return trades
 
 
+def signal_from_pred(pred: np.ndarray, side: str, thr_q: float,
+                     start: int, end: int) -> np.ndarray:
+    """按预测值分位生成信号: 多头取 >= 上分位, 空头取 <= 下分位。仅作用于 [start,end)。"""
+    sig = np.zeros(len(pred), dtype=bool)
+    seg = pred[start:end]
+    finite = np.isfinite(seg)
+    if finite.sum() < 30:
+        return sig
+    q = 1.0 - thr_q if side == "long" else thr_q
+    thr = float(np.nanquantile(seg[finite], q))
+    if side == "long":
+        sig[start:end] = finite & (seg >= thr)
+    else:
+        sig[start:end] = finite & (seg <= thr)
+    return sig
+
+
+def evaluate_with_params(pred: np.ndarray, ohlc: dict, atr: np.ndarray, times: np.ndarray,
+                         side: str, start: int, end: int, thr_q: float,
+                         tp_mult: float, sl_mult: float,
+                         notional: float = None) -> dict:
+    """统一评估入口: 信号 -> 成交 -> 指标 + 权益曲线。所有调用方共用, 保证口径一致。"""
+    notional = C.TRADE_NOTIONAL if notional is None else notional
+    sig = signal_from_pred(pred, side, thr_q, start, end)
+    trades = simulate_signals(sig, ohlc["open"], ohlc["high"], ohlc["low"], ohlc["close"],
+                              atr, times, side, tp_mult, sl_mult,
+                              C.MAX_HOLD_BARS, notional)
+    eq = equity_from_trades(trades, len(pred))
+    from src.metrics import summarize
+    m = summarize(trades, eq[start:end])
+    return {"metrics": m, "trades": trades, "equity": eq[start:end]}
+
+
 def equity_from_trades(trades: List[Trade], n_bars: int) -> np.ndarray:
     """按 bar 记权益曲线(含持仓浮盈), 用于算夏普/回撤。"""
     eq = np.full(n_bars, C.INIT_CAPITAL, dtype=float)

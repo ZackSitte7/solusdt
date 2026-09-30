@@ -1,86 +1,93 @@
 # -*- coding: utf-8 -*-
-"""优化器 —— **只在 OOF 段上**优化模型层与执行层。
+"""优化器 —— **嵌套 CV 选模 + 选执行参数**。
 
-红线:
-  - OOC 段绝不参与任何参数选择, 只在最后冻结配置后跑一次。
-  - 记录并披露**实际比较过的组合数**, 因为多次比较必然产生"看起来很好"的假阳性。
-目标:
-  主目标 夏普(年化), 次目标 总收益; 并要求成交笔数 >= MIN_TRADES, 否则不足以判定。
+为什么不用「在 OOF 上网格搜索」:
+  上一版在 OOF(2015 根)上比较了 350 个组合, 选出 OOF 夏普 +2.36, 但 OOC 转负 -2.29。
+  在有限样本上做大规模搜索, 最优解几乎必然是噪声。
+做法(嵌套 CV):
+  外层: 在**训练段内部**做 Purged K-Fold, 得到若干折;
+  内层: 每折用「其余折」训练模型, 在该折上评估 (模型候选 x 执行参数) 组合;
+  聚合: 同一组合在各折上的得分取均值 -> 按均值排序选出最优组合;
+  最后: 用**整个训练段**重训一次选定模型, 冻结参数。
+  OOF 段只用于**一次性确认**, OOC 段只观察 —— 两者都不参与任何选择。
 """
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from itertools import product
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 
 import config as C
-from src.execution import simulate_signals, equity_from_trades
-from src.metrics import summarize
+from src import models
+from src.cv import PurgedKFold
+from src.execution import evaluate_with_params
 
-MIN_TRADES = 20          # OOF 段最少成交笔数, 低于此不参与优选
+MIN_TRADES_PER_FOLD = 8       # 单折最少成交笔数, 低于此该组合该折不计分
 
 
-def grid_execution(pred: np.ndarray, ohlc: Dict[str, np.ndarray], atr: np.ndarray,
-                   times: np.ndarray, side: str, start: int, end: int,
-                   notional: float = None) -> pd.DataFrame:
-    """在 [start,end) 区间上网格搜索 阈值分位 x 止盈 x 止损。返回结果表。"""
-    notional = C.TRADE_NOTIONAL if notional is None else notional
-    seg_pred = pred[start:end]
-    finite = np.isfinite(seg_pred)
-    if finite.sum() < 100:
-        return pd.DataFrame()
+def _exec_grid() -> List[dict]:
+    return [dict(thr_q=q, tp_mult=tp, sl_mult=sl)
+            for q, tp, sl in product(C.EXEC_THR_GRID, C.TP_ATR_GRID, C.SL_ATR_GRID)]
 
-    thr_grid = (0.50, 0.60, 0.70, 0.80, 0.90)
+
+def nested_select(F: pd.DataFrame, y: pd.Series, factors: List[str], side: str,
+                  ohlc: dict, atr: np.ndarray, times: np.ndarray,
+                  train_slice: slice, verbose: bool = True) -> Tuple[str, dict, pd.DataFrame]:
+    """在训练段内部做嵌套 CV, 选出 (模型候选名, 执行参数)。"""
+    ts, te = train_slice.start, train_slice.stop
+    n_train = te - ts
+    cands = models.MODEL_GRID
+    grid = _exec_grid()
     rows: List[dict] = []
-    for q in thr_grid:
-        thr = float(np.nanquantile(seg_pred[finite], 1.0 - q if side == "long" else q))
-        sig_full = np.zeros(len(pred), dtype=bool)
-        if side == "long":
-            sig_full[start:end] = finite & (seg_pred >= thr)
-        else:
-            sig_full[start:end] = finite & (seg_pred <= thr)
-        for tp_m in C.TP_ATR_GRID:
-            for sl_m in C.SL_ATR_GRID:
-                trades = simulate_signals(sig_full, ohlc["open"], ohlc["high"], ohlc["low"],
-                                          ohlc["close"], atr, times, side, tp_m, sl_m,
-                                          C.MAX_HOLD_BARS, notional)
-                if len(trades) < 5:
+
+    folds = list(PurgedKFold(n_splits=C.NESTED_FOLDS, embargo=C.CV_EMBARGO_BARS,
+                             horizon=C.HORIZON).split(n_train))
+    for fi, (tr_l, va_l) in enumerate(folds, 1):
+        tr_g, va_g = ts + tr_l, ts + va_l
+        v0, v1 = int(va_g.min()), int(va_g.max()) + 1
+        for mc in cands:
+            booster = models.train_fold(F, y, factors, tr_g, va_g,
+                                        params=models.resolve_params(mc))
+            pred = models.predict_booster(booster, F, factors)
+            for ec in grid:
+                r = evaluate_with_params(pred, ohlc, atr, times, side, v0, v1,
+                                         ec["thr_q"], ec["tp_mult"], ec["sl_mult"])
+                m = r["metrics"]
+                if m["n_trades"] < MIN_TRADES_PER_FOLD:
                     continue
-                eq = equity_from_trades(trades, len(pred))
-                m = summarize(trades, eq[start:end] if eq[start:end].size else eq)
-                rows.append(dict(side=side, thr_q=q, thr=thr, tp_mult=tp_m, sl_mult=sl_m,
-                                 **{k: m[k] for k in
-                                    ("n_trades", "win_rate", "payoff_ratio", "profit_factor",
-                                     "sharpe", "calmar", "max_drawdown", "total_return",
-                                     "final_equity")}))
-    return pd.DataFrame(rows)
+                rows.append(dict(fold=fi, model=mc["name"], **ec,
+                                 n=m["n_trades"], sharpe=m["sharpe"],
+                                 total_return=m["total_return"], tp_rate=m["tp_rate"],
+                                 win_rate=m["win_rate"], payoff=m["payoff_ratio"]))
+        if verbose:
+            print("    [%s] 外层折 %d/%d 完成 (验证 %d 根)"
+                  % (side, fi, len(folds), v1 - v0))
+
+    g = pd.DataFrame(rows)
+    if g.empty:
+        return cands[0]["name"], dict(thr_q=0.6, tp_mult=2.0, sl_mult=1.5), g
+
+    # 退化参数淘汰: 止盈几乎不触发的组合直接作废
+    g = g[g["tp_rate"] >= C.MIN_TP_RATE]
+    if g.empty:
+        g = pd.DataFrame(rows)
+
+    agg = (g.groupby(["model", "thr_q", "tp_mult", "sl_mult"])
+             .agg(n_folds=("sharpe", "size"), sharpe=("sharpe", "mean"),
+                  total_return=("total_return", "mean"),
+                  tp_rate=("tp_rate", "mean"), win_rate=("win_rate", "mean"),
+                  payoff=("payoff", "mean"), n_trades=("n", "mean"))
+             .reset_index()
+             .sort_values(["sharpe", "total_return"], ascending=False)
+             .reset_index(drop=True))
+    best = agg.iloc[0]
+    return best["model"], dict(thr_q=float(best["thr_q"]), tp_mult=float(best["tp_mult"]),
+                               sl_mult=float(best["sl_mult"])), agg
 
 
-def pick_best(grid: pd.DataFrame) -> Optional[dict]:
-    """按 (夏普 -> 总收益) 优选, 并强制最小笔数。"""
-    if grid.empty:
-        return None
-    ok = grid[grid["n_trades"] >= MIN_TRADES].copy()
-    if ok.empty:
-        ok = grid.copy()                       # 样本不足时退化为全表(会在报告里标注)
-    ok = ok.sort_values(["sharpe", "total_return"], ascending=False)
-    return ok.iloc[0].to_dict()
-
-
-def grid_models(cand_results: Dict[str, dict]) -> Optional[str]:
-    """模型层优选: 各候选配置在 OOF 上的夏普, 取最优。"""
-    best, best_key = None, None
-    for k, v in cand_results.items():
-        s = v.get("sharpe", float("-inf"))
-        if best is None or s > best:
-            best, best_key = s, k
-    return best_key
-
-
-def disclosure(grid_rows: int, model_rows: int) -> str:
-    """多重比较披露。"""
-    tot = grid_rows + model_rows
-    return ("本次共比较 %d 个组合(执行层 %d + 模型层 %d)。"
-            "未做多重检验校正时, 夏普最高者很可能是噪声; "
-            "判定应同时看 OOC 段是否复现。" % (tot, grid_rows, model_rows))
+def disclosure(n_combos: int, n_folds: int) -> str:
+    return ("嵌套 CV: %d 个(模型×执行)组合 x %d 折 = %d 次评估, 选优依据为**各折均值**。"
+            "聚合后比较的独立组合为 %d 个。OOF/OOC 均未参与选择。" %
+            (n_combos, n_folds, n_combos * n_folds, n_combos))

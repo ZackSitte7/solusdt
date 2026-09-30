@@ -18,6 +18,8 @@ from typing import List, Tuple
 import numpy as np
 import pandas as pd
 
+import config as C
+
 
 # ---------------------------------------------------------------- 基础工具
 def _sma(s: pd.Series, n: int) -> pd.Series:
@@ -164,10 +166,27 @@ def build_factors(df: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
 
 
 def add_label(df: pd.DataFrame, horizon: int) -> pd.DataFrame:
-    """标签: 未来 horizon 根的对数收益(close_t -> close_{t+horizon})。
-    同时给出**可成交的**前瞻收益(open_{t+1} -> close_{t+horizon}), 供回测/评估对照,
-    避免用 close_t 建仓这种不可交易假设。"""
+    """标签。
+
+    label_raw : 未来 horizon 根的对数收益(close_t -> close_{t+horizon})
+    label     : **以 ATR 为单位**的未来涨跌 = label_raw / (ATR_t / close_t)。
+                除以 ATR 是为了消除波动率/漂移的制度差异 —— 训练段是 +7941% 大牛市,
+                验证段是熊市, 用原始收益会让模型学成「永远做多」。
+    另给出**可成交的**前瞻收益(open_{t+1} -> close_{t+horizon}), 供回测/评估对照,
+    避免用 close_t 建仓这种不可交易假设。
+    """
     d = df.copy()
-    d["label"] = np.log(d["close"].shift(-horizon) / d["close"])
-    d["label_tradable"] = np.log(d["close"].shift(-horizon) / d["open"].shift(-1))
+    atr = _atr(d["high"], d["low"], d["close"], 14)
+    atr_rel = _safe_div(atr, d["close"])                 # 相对 ATR(占价格比例)
+    d["atr"] = atr
+
+    d["label_raw"] = np.log(d["close"].shift(-horizon) / d["close"])
+    d["label_tradable_raw"] = np.log(d["close"].shift(-horizon) / d["open"].shift(-1))
+
+    if getattr(C, "LABEL_MODE", "atr") == "atr":
+        d["label"] = _safe_div(d["label_raw"], atr_rel)
+        d["label_tradable"] = _safe_div(d["label_tradable_raw"], atr_rel)
+    else:
+        d["label"] = d["label_raw"]
+        d["label_tradable"] = d["label_tradable_raw"]
     return d
