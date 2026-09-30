@@ -43,6 +43,14 @@ BINANCE_BASE = "https://data-api.binance.vision"
 KLINES_LIMIT = 1000          # 单次请求上限(Binance 硬限制)
 BINANCE_RAW_PARQUET = DATA_DIR / "solusdt_4h_raw_binance.parquet"  # 币安原始抓取
 
+# ---------------------------------------------------------------- 本次回测数据源(需求1)
+# 本次回测使用**欧易(OKX)** 4h 数据, 入口脚本 run_backtest_okx.py。
+# 注意: 欧易公开 K 线**不含** trades / taker_buy_base / taker_buy_quote 订单流字段,
+# 因子库会自动跳过依赖这些字段的因子(见 src/factors.py ORDER_FLOW_COLS)。
+BACKTEST_SOURCE = "okx"
+BACKTEST_RAW = OKX_RAW_PARQUET                              # 欧易原始(规整后 Parquet)
+BACKTEST_CLEAN = DATA_DIR / "solusdt_4h_clean_okx.parquet"  # 欧易清洗后
+
 SYMBOL = "SOLUSDT"
 INTERVAL = "4h"
 REQUEST_SLEEP = 0.2          # 请求间隔(秒), 礼貌限速
@@ -108,10 +116,11 @@ LGBM_PARAMS_COMMON = dict(
 LGBM_ROUNDS = 1500
 LGBM_EARLY_STOP = 100
 
-# ---------------------------------------------------------------- 成本(单边)
-# 加密货币 4h 级别: 用 taker 手续费 + 滑点。1000 USDT 本金下按比例计。
-FEE_RATE = 0.0005            # 单边手续费 5 bp (taker)
-SLIP_RATE = 0.0005           # 单边滑点 5 bp
+# ---------------------------------------------------------------- 成本(单边, 需求11)
+# 需求11: 手续费**单边万分之五(5bp), 双边千分之一(10bp = 开+平各 5bp)**。
+# 规格未要求滑点, 故 SLIP_RATE 置 0; 若需保守假设可调回 0.0005。
+FEE_RATE = 0.0005            # 单边手续费 5 bp
+SLIP_RATE = 0.0              # 单边滑点(本规格不启用)
 
 # ---------------------------------------------------------------- 回测
 INIT_CAPITAL = 1000.0        # 初始本金(USDT)
@@ -128,7 +137,11 @@ MAX_HOLD_BARS = 12           # 最长持有根数(4h * 12 = 48h), 到期按收�
 # 退化参数淘汰线: 止盈率低于此值说明「止盈」并未真正工作, 该组合作废
 MIN_TP_RATE = 0.15
 
+# ---------------------------------------------------------------- OOF 优化(需求7/8/9)
+# **只在 OOF 上**优化模型层(超参候选)与执行层(阈值/止盈/止损); OOC 全程只观察。
+OOF_MIN_TRADES = 20          # 单组合 OOF 最少成交笔数(防止选到"几乎不交易"的退化参数)
+
 # ---------------------------------------------------------------- 目标函数
-# 只在 OOF 上优化。主目标为夏普, 次目标为收益(见 optimize.py)
+# 只在 OOF 上优化。主目标为夏普, 次目标为收益(见 src/optimize.py optimize_on_oof)
 OBJECTIVE_PRIMARY = "sharpe"
 OBJECTIVE_SECONDARY = "total_return"

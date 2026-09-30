@@ -1,15 +1,18 @@
 # -*- coding: utf-8 -*-
-"""优化器 —— **嵌套 CV 选模 + 选执行参数**。
+"""优化器 —— 模型层(超参候选) × 执行层(阈值/止盈/止损) 的选优。
 
-为什么不用「在 OOF 上网格搜索」:
-  上一版在 OOF(2015 根)上比较了 350 个组合, 选出 OOF 夏普 +2.36, 但 OOC 转负 -2.29。
-  在有限样本上做大规模搜索, 最优解几乎必然是噪声。
-做法(嵌套 CV):
-  外层: 在**训练段内部**做 Purged K-Fold, 得到若干折;
-  内层: 每折用「其余折」训练模型, 在该折上评估 (模型候选 x 执行参数) 组合;
-  聚合: 同一组合在各折上的得分取均值 -> 按均值排序选出最优组合;
-  最后: 用**整个训练段**重训一次选定模型, 冻结参数。
-  OOF 段只用于**一次性确认**, OOC 段只观察 —— 两者都不参与任何选择。
+本文件有两个入口:
+  - `optimize_on_oof` (需求7/8/9 的**主路径**): 用 **train** 训练各模型候选,
+    再在 **OOF** 上网格评估每个 (模型, 执行) 组合并选优; OOC 全程只观察。
+  - `nested_select` (备用路径, 供旧流水线 run_pipeline.py 使用): 在 train 内部做
+    嵌套 CV, 以各折均值选优, 不触碰 OOF/OOC。
+
+为什么主路径把优化放在 OOF:
+  用户规格明确要求「只在 OOF 上优化, OOC 只观察」。这时样本被切成
+  train(拟合) / OOF(选择) / OOC(唯一纯净检验), 是标准的 train-valid-test 结构;
+  OOC 因此是唯一未被任何选择过程污染的段, 其表现是对外可披露的诚实结果。
+  代价: OOF 上做了 ~数百次比较, 最优解可能含噪声 -> 故设 OOF_MIN_TRADES 门槛,
+  并要求 OOC 表现作为最终(而非可选)检验。design==runtime 见 DESIGN.md / tests。
 """
 from __future__ import annotations
 
@@ -91,3 +94,62 @@ def disclosure(n_combos: int, n_folds: int) -> str:
     return ("嵌套 CV: %d 个(模型×执行)组合 x %d 折 = %d 次评估, 选优依据为**各折均值**。"
             "聚合后比较的独立组合为 %d 个。OOF/OOC 均未参与选择。" %
             (n_combos, n_folds, n_combos * n_folds, n_combos))
+
+
+# ================================================================ 主路径: OOF 优化
+def _select_best(g: pd.DataFrame) -> pd.DataFrame:
+    """选优规则(需求7/8/9): 成交数门槛 -> 退化参数淘汰 -> 主目标+次目标排序。"""
+    usable = g[g["n"] >= C.OOF_MIN_TRADES]
+    if usable.empty:                        # 门槛过严时退回全量, 保证总有解
+        usable = g
+    cand = usable[usable["tp_rate"] >= C.MIN_TP_RATE]
+    if cand.empty:                          # 止盈几乎不触发的组合全部作废; 仍空则退回
+        cand = usable
+    return cand.sort_values([C.OBJECTIVE_PRIMARY, C.OBJECTIVE_SECONDARY],
+                            ascending=False).reset_index(drop=True)
+
+
+def optimize_on_oof(F: pd.DataFrame, y: pd.Series, factors: List[str], side: str,
+                    ohlc: dict, atr: np.ndarray, times: np.ndarray,
+                    train_slice: slice, oof_slice: slice,
+                    verbose: bool = True) -> Tuple[dict, pd.DataFrame, pd.DataFrame]:
+    """在 **OOF** 上优化 (模型候选 × 执行参数)。训练只用 train, 选优只用 OOF。
+
+    返回 (best, agg, raw):
+      best = dict(model_name, model, thr_q, thr_abs, tp_mult, sl_mult, oof_metrics)
+      agg  = 按选优规则排序后的组合表(供落盘审阅)
+      raw  = 所有 (模型×执行) 的原始 OOF 评估明细
+    """
+    ts, te = train_slice.start, train_slice.stop
+    grid = _exec_grid()
+    rows: List[dict] = []
+    trained: Dict[str, models.TrainedModel] = {}
+    for mc in models.MODEL_GRID:
+        tm = models.train_side(F.iloc[ts:te], y.iloc[ts:te], factors, side,
+                               params=models.resolve_params(mc), verbose=False)
+        trained[mc["name"]] = tm
+        pred = tm.predict(F)                       # 全序列预测, 仅取 OOF 段评估
+        for ec in grid:
+            r = evaluate_with_params(pred, ohlc, atr, times, side,
+                                     oof_slice.start, oof_slice.stop,
+                                     ec["thr_q"], ec["tp_mult"], ec["sl_mult"])
+            m = r["metrics"]
+            rows.append(dict(model=mc["name"], **ec, n=int(m["n_trades"]),
+                             thr_abs=float(r["thr_abs"]), sharpe=float(m["sharpe"]),
+                             total_return=float(m["total_return"]), calmar=float(m["calmar"]),
+                             max_drawdown=float(m["max_drawdown"]), win_rate=float(m["win_rate"]),
+                             payoff=float(m["payoff_ratio"]), tp_rate=float(m["tp_rate"])))
+        if verbose:
+            print("    [%s] 模型候选 %-9s 已评估 %d 组执行参数" % (side, mc["name"], len(grid)))
+
+    raw = pd.DataFrame(rows)
+    agg = _select_best(raw)
+    best = agg.iloc[0]
+    name = best["model"]
+    out = dict(model_name=name, model=trained[name], thr_q=float(best["thr_q"]),
+               thr_abs=float(best["thr_abs"]), tp_mult=float(best["tp_mult"]),
+               sl_mult=float(best["sl_mult"]),
+               oof_metrics={k: float(best[k]) for k in
+                            ("n", "sharpe", "total_return", "calmar", "max_drawdown",
+                             "win_rate", "payoff", "tp_rate")})
+    return out, agg, raw

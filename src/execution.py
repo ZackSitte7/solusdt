@@ -18,6 +18,8 @@ import pandas as pd
 
 import config as C
 
+MIN_SEG = 30                 # 段内最少有效预测数, 低于此不生成阈值(避免噪声分位)
+
 
 @dataclass
 class Trade:
@@ -99,37 +101,69 @@ def simulate_signals(signals: np.ndarray, o: np.ndarray, h: np.ndarray, l: np.nd
     return trades
 
 
-def signal_from_pred(pred: np.ndarray, side: str, thr_q: float,
-                     start: int, end: int) -> np.ndarray:
-    """按预测值分位生成信号: 多头取 >= 上分位, 空头取 <= 下分位。仅作用于 [start,end)。"""
-    sig = np.zeros(len(pred), dtype=bool)
+def threshold_from_quantile(pred: np.ndarray, side: str, thr_q: float,
+                            start: int, end: int) -> float:
+    """从 [start,end) 段预测值取分位, 得到**绝对**阈值。
+    多头取上分位(1-thr_q), 空头取下分位(thr_q)。"""
     seg = pred[start:end]
     finite = np.isfinite(seg)
-    if finite.sum() < 30:
-        return sig
+    if finite.sum() < MIN_SEG:
+        return float("nan")
     q = 1.0 - thr_q if side == "long" else thr_q
-    thr = float(np.nanquantile(seg[finite], q))
+    return float(np.nanquantile(seg[finite], q))
+
+
+def signal_from_threshold(pred: np.ndarray, side: str, thr_abs: float,
+                          start: int, end: int) -> np.ndarray:
+    """按**冻结的绝对阈值**生成信号。
+
+    关键: OOC 评估必须传入由 OOF 冻结下来的 thr_abs, 而**不能**用 OOC 自身分布取分位,
+    否则会用 OOC 的分布信息(等于偷看 OOC)。
+    """
+    sig = np.zeros(len(pred), dtype=bool)
+    if not np.isfinite(thr_abs):
+        return sig
+    seg = pred[start:end]
+    finite = np.isfinite(seg)
     if side == "long":
-        sig[start:end] = finite & (seg >= thr)
+        sig[start:end] = finite & (seg >= thr_abs)
     else:
-        sig[start:end] = finite & (seg <= thr)
+        sig[start:end] = finite & (seg <= thr_abs)
     return sig
 
 
-def evaluate_with_params(pred: np.ndarray, ohlc: dict, atr: np.ndarray, times: np.ndarray,
-                         side: str, start: int, end: int, thr_q: float,
-                         tp_mult: float, sl_mult: float,
-                         notional: float = None) -> dict:
-    """统一评估入口: 信号 -> 成交 -> 指标 + 权益曲线。所有调用方共用, 保证口径一致。"""
+def signal_from_pred(pred: np.ndarray, side: str, thr_q: float,
+                     start: int, end: int) -> np.ndarray:
+    """按预测值分位生成信号(便捷封装: 先算分位阈值, 再按绝对阈值比对)。"""
+    return signal_from_threshold(
+        pred, side, threshold_from_quantile(pred, side, thr_q, start, end), start, end)
+
+
+def evaluate_with_threshold(pred: np.ndarray, ohlc: dict, atr: np.ndarray, times: np.ndarray,
+                            side: str, start: int, end: int, thr_abs: float,
+                            tp_mult: float, sl_mult: float,
+                            notional: float = None) -> dict:
+    """统一评估入口(绝对阈值): 信号 -> 成交 -> 指标 + 权益曲线。所有调用方共用, 口径一致。"""
     notional = C.TRADE_NOTIONAL if notional is None else notional
-    sig = signal_from_pred(pred, side, thr_q, start, end)
+    sig = signal_from_threshold(pred, side, thr_abs, start, end)
     trades = simulate_signals(sig, ohlc["open"], ohlc["high"], ohlc["low"], ohlc["close"],
                               atr, times, side, tp_mult, sl_mult,
                               C.MAX_HOLD_BARS, notional)
     eq = equity_from_trades(trades, len(pred))
     from src.metrics import summarize
     m = summarize(trades, eq[start:end])
-    return {"metrics": m, "trades": trades, "equity": eq[start:end]}
+    return {"metrics": m, "trades": trades, "equity": eq[start:end],
+            "thr_abs": float(thr_abs), "n_signals": int(sig.sum())}
+
+
+def evaluate_with_params(pred: np.ndarray, ohlc: dict, atr: np.ndarray, times: np.ndarray,
+                         side: str, start: int, end: int, thr_q: float,
+                         tp_mult: float, sl_mult: float,
+                         notional: float = None) -> dict:
+    """分位阈值版入口(先由 [start,end) 段预测算分位, 再评估)。"""
+    thr = threshold_from_quantile(pred, side, thr_q, start, end)
+    return evaluate_with_threshold(pred, ohlc, atr, times, side, start, end, thr,
+                                   tp_mult, sl_mult, notional)
 
 
 def equity_from_trades(trades: List[Trade], n_bars: int) -> np.ndarray:

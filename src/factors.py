@@ -7,7 +7,8 @@
   波动        ATR 比、实现波动、布林带宽、Parkinson、振幅
   超买超卖    RSI / Stochastic / CCI
   量能       量 z-score、量比、OBV 斜率、VWAP 偏离
-  订单流     taker 主动买占比(Binance klines 直接提供, 是最接近真实买卖压力的公开字段)
+  订单流     taker 主动买占比(**仅当数据源提供** trades/taker_buy_* 时构建;
+             欧易公开 K 线无此字段, 自动跳过)
   形态       收盘在 K 线内的位置、上下影线、实体比、跳空
   时间       小时 / 星期(加密市场存在日内与周内效应)
 """
@@ -19,6 +20,9 @@ import numpy as np
 import pandas as pd
 
 import config as C
+
+# 订单流因子依赖的原始字段。欧易(OKX)公开 K 线缺少这些字段 -> 自动跳过相关因子。
+ORDER_FLOW_COLS = ("trades", "taker_buy_base", "taker_buy_quote")
 
 
 # ---------------------------------------------------------------- 基础工具
@@ -46,6 +50,20 @@ def _atr(high: pd.Series, low: pd.Series, close: pd.Series, n: int) -> pd.Series
 
 def _safe_div(a: pd.Series, b: pd.Series) -> pd.Series:
     return a / b.replace(0, np.nan)
+
+
+def _adx(high: pd.Series, low: pd.Series, close: pd.Series, n: int) -> pd.Series:
+    """ADX(n) —— 经典趋势强度指标(需求14 趋势类因子)。"""
+    up, dn = high.diff(), -low.diff()
+    plus_dm = pd.Series(np.where((up > dn) & (up > 0), up, 0.0), index=high.index)
+    minus_dm = pd.Series(np.where((dn > up) & (dn > 0), dn, 0.0), index=high.index)
+    pc = close.shift(1)
+    tr = pd.concat([(high - low), (high - pc).abs(), (low - pc).abs()], axis=1).max(axis=1)
+    atr = tr.ewm(alpha=1.0 / n, adjust=False, min_periods=n).mean()
+    plus_di = 100.0 * _safe_div(plus_dm.ewm(alpha=1.0 / n, adjust=False, min_periods=n).mean(), atr)
+    minus_di = 100.0 * _safe_div(minus_dm.ewm(alpha=1.0 / n, adjust=False, min_periods=n).mean(), atr)
+    dx = 100.0 * _safe_div((plus_di - minus_di).abs(), plus_di + minus_di)
+    return dx.ewm(alpha=1.0 / n, adjust=False, min_periods=n).mean()
 
 
 # ---------------------------------------------------------------- 因子构建
@@ -76,6 +94,7 @@ def build_factors(df: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
     f["macd_signal"] = _safe_div(_ema(ema12 - ema26, 9), c)
     f["macd_hist"] = f["macd"] - f["macd_signal"]
     atr14 = _atr(h, l, c, 14)
+    f["adx_14"] = _adx(h, l, c, 14)                                 # 趋势强度(需求14)
     f["trend_strength_50"] = _safe_div(c - _sma(c, 50), atr14)      # 距 50 均线多少个 ATR
     # 线性回归斜率(标准化为每根 bar 的 %): 20/50 根窗口
     x = np.arange(20.0)
@@ -122,11 +141,12 @@ def build_factors(df: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
     f["vol_z_20"] = _safe_div(v - vm, vs)
     f["vol_ma_ratio"] = _safe_div(_sma(v, 5), vm)
     f["quote_vol_z_20"] = _safe_div(qv - _sma(qv, 20), qv.rolling(20, min_periods=20).std())
-    tr_n = d["trades"]
-    f["trades_z_20"] = _safe_div(tr_n - _sma(tr_n, 20), tr_n.rolling(20, min_periods=20).std())
-    f["avg_trade_size"] = _safe_div(v, tr_n)                         # 单笔均量(大单占比代理)
-    f["avg_trade_size_z"] = _safe_div(f["avg_trade_size"] - _sma(f["avg_trade_size"], 20),
-                                      f["avg_trade_size"].rolling(20, min_periods=20).std())
+    if "trades" in d.columns:                                        # 订单流字段(欧易无)
+        tr_n = d["trades"]
+        f["trades_z_20"] = _safe_div(tr_n - _sma(tr_n, 20), tr_n.rolling(20, min_periods=20).std())
+        f["avg_trade_size"] = _safe_div(v, tr_n)                     # 单笔均量(大单占比代理)
+        f["avg_trade_size_z"] = _safe_div(f["avg_trade_size"] - _sma(f["avg_trade_size"], 20),
+                                          f["avg_trade_size"].rolling(20, min_periods=20).std())
     # OBV 斜率
     obv = (np.sign(lr.fillna(0.0)) * v).cumsum()
     f["obv_slope_20"] = _safe_div(obv - obv.shift(20), v.rolling(20, min_periods=20).sum())
@@ -134,14 +154,15 @@ def build_factors(df: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
     f["vwap_dev_20"] = _safe_div(c, _safe_div((tp * v).rolling(20, min_periods=20).sum(),
                                              v.rolling(20, min_periods=20).sum())) - 1.0
 
-    # ---------------- 订单流: taker 主动买占比(公开发布里最接近真实买卖压力的字段)
-    tbr = _safe_div(d["taker_buy_base"], v)
-    f["taker_buy_ratio"] = tbr
-    f["taker_buy_ratio_ma6"] = _sma(tbr, 6)
-    f["taker_buy_ratio_dev"] = tbr - _sma(tbr, 20)
-    f["taker_buy_z_20"] = _safe_div(tbr - _sma(tbr, 20), tbr.rolling(20, min_periods=20).std())
-    qbr = _safe_div(d["taker_buy_quote"], qv)
-    f["taker_buy_quote_ratio"] = qbr
+    # ---------------- 订单流: taker 主动买占比(仅数据源提供 trades/taker_buy_* 时)
+    if all(col in d.columns for col in ("taker_buy_base", "taker_buy_quote")):
+        tbr = _safe_div(d["taker_buy_base"], v)
+        f["taker_buy_ratio"] = tbr
+        f["taker_buy_ratio_ma6"] = _sma(tbr, 6)
+        f["taker_buy_ratio_dev"] = tbr - _sma(tbr, 20)
+        f["taker_buy_z_20"] = _safe_div(tbr - _sma(tbr, 20), tbr.rolling(20, min_periods=20).std())
+        qbr = _safe_div(d["taker_buy_quote"], qv)
+        f["taker_buy_quote_ratio"] = qbr
 
     # ---------------- K线形态
     rng = (h - l).replace(0, np.nan)
