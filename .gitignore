@@ -13,12 +13,17 @@ __pycache__/
 .pytest_cache/
 .ipynb_checkpoints/
 
-# ---- 数据 / 产物(不入库, 可用脚本重新生成) ----
+# ---- 数据 / 产物(默认不入库, 可用脚本重新生成) ----
 data/
 reports/
 *.parquet
 *.csv
 *.png
+
+# ---- 例外: SOL/USDT 4h 币安原始/清洗数据随仓库分发(见 src/data_fetch.py) ----
+!data/
+!data/solusdt_4h_raw_binance.parquet
+!data/solusdt_4h_clean.parquet
 
 # ---- 敏感信息: 一律不得入库 ----
 .env

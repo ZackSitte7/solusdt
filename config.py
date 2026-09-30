@@ -2,7 +2,7 @@
 """全局配置 —— 路径 / 数据规格 / 切分 / 成本 / 回测约束。
 
 设计原则:
-  - 本文件**不含任何密钥**。数据源是 Binance 公开行情接口, 无需认证。
+  - 本文件**不含任何密钥**。数据源是欧易(OKX)/币安(Binance)公开行情接口, 无需认证。
   - 所有会随实验调整的参数集中在此, 保证「设计与运行的同一性」:
     脚本只从 config 读参数, 不允许在业务代码里散落魔法数字。
 """
@@ -17,7 +17,11 @@ REPORT_DIR = BASE_DIR / "reports"
 DATA_DIR.mkdir(exist_ok=True)
 REPORT_DIR.mkdir(exist_ok=True)
 
-RAW_PARQUET = DATA_DIR / "solusdt_4h_raw.parquet"      # 原始抓取
+# 主数据源: "binance" | "okx"。默认币安 —— 字段更全(含 trades/taker_buy_*,
+# 下游 factors.py 依赖), 历史更早, 且本沙箱可直连。
+SOURCE = "binance"
+
+RAW_PARQUET = DATA_DIR / "solusdt_4h_raw.parquet"      # 原始抓取(当前主数据源产物)
 CLEAN_PARQUET = DATA_DIR / "solusdt_4h_clean.parquet"  # 清洗后
 PRED_PARQUET = DATA_DIR / "solusdt_4h_pred.parquet"    # 含预测与回测结果
 
@@ -30,6 +34,13 @@ OKX_INST = "SOL-USDT"        # OKX 现货交易对
 OKX_BAR = "4H"               # OKX K线周期(4 小时)
 OKX_LIMIT = 100              # history-candles 单次请求上限(OKX 硬限制)
 OKX_DUMP = DATA_DIR / "solusdt_4h_okx_raw.json"   # 外网主机抓取的原始 JSON
+
+# 币安(Binance)官方公开数据镜像(无需 API Key; 沙箱白名单内, **可直连**)。
+# 字段比 OKX 更全(含 trades / taker_buy_*), 历史更早(SOL 上市 2020-08-11 起)。
+# 注意: api.binance.com 在本环境不可达, 只有 data-api.binance.vision 可达。
+BINANCE_BASE = "https://data-api.binance.vision"
+KLINES_LIMIT = 1000          # 单次请求上限(Binance 硬限制)
+BINANCE_RAW_PARQUET = DATA_DIR / "solusdt_4h_raw_binance.parquet"  # 币安原始抓取
 
 SYMBOL = "SOLUSDT"
 INTERVAL = "4h"
