@@ -85,7 +85,7 @@ def nested_select(F: pd.DataFrame, y: pd.Series, factors: List[str], side: str,
                   tp_rate=("tp_rate", "mean"), win_rate=("win_rate", "mean"),
                   payoff=("payoff", "mean"), n_trades=("n", "mean"))
              .reset_index()
-             .sort_values(["sharpe", "total_return"], ascending=False)
+             .sort_values([C.OBJECTIVE_PRIMARY, C.OBJECTIVE_SECONDARY], ascending=False)
              .reset_index(drop=True))
     best = agg.iloc[0]
     return best["model"], dict(thr_q=float(best["thr_q"]), tp_mult=float(best["tp_mult"]),

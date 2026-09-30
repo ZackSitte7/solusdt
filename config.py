@@ -152,6 +152,8 @@ OOF_DEDUP_CORR_GRID = (0.80, 0.85, 0.90, 0.95)
 OOF_HOLD_GRID = (6, 12, 24)
 
 # ---------------------------------------------------------------- 目标函数
-# 只在 OOF 上优化。主目标为夏普, 次目标为收益(见 src/optimize.py optimize_on_oof)
-OBJECTIVE_PRIMARY = "sharpe"
-OBJECTIVE_SECONDARY = "total_return"
+# 只在 OOF 上优化。主目标为**收益**, 次目标为**夏普**(见 src/optimize.py optimize_full_on_oof)。
+# 为什么收益优先: 多头的最优点收益与夏普同时最优(帕累托占优), 次序无所谓;
+# 但空头存在真实取舍(收益 +10.44%/夏普 3.11 vs 收益 +9.15%/夏普 3.23), 按收益优先取前者。
+OBJECTIVE_PRIMARY = "total_return"
+OBJECTIVE_SECONDARY = "sharpe"
