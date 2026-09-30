@@ -68,6 +68,25 @@ def corr_greedy_prune(F: pd.DataFrame, ic: pd.Series, candidates: List[str],
     return keep, dropped_by
 
 
+def factor_sets_by_dedup(F_train: pd.DataFrame, y_train: pd.Series,
+                         dedup_grid) -> Tuple[pd.Series, Dict[float, Dict[str, List[str]]]]:
+    """一次算 IC, 再对**多个去冗余阈值**分别产出多空因子集。
+
+    仅供 OOF 选优时扫描用: 因子与 IC 依旧只来自 train 段, 被扫描的是"去冗余松紧"这一超参,
+    其取值由 OOF 表现决定(与模型/执行参数同一套选优纪律)。
+    返回 (ic, {dedup: {"long": [...], "short": [...]}})。
+    """
+    ic = compute_ic(F_train, y_train)
+    out: Dict[float, Dict[str, List[str]]] = {}
+    for d in dedup_grid:
+        out[d] = {}
+        for side in ("long", "short"):
+            cand = select_by_side(ic, side)
+            keep, _ = corr_greedy_prune(F_train, ic, cand, max_corr=d)
+            out[d][side] = keep
+    return ic, out
+
+
 def select_factors(F_train: pd.DataFrame, y_train: pd.Series) -> Dict[str, object]:
     """对多头与空头分别产出因子集合与 IC 表。返回结构化结果, 便于落盘审阅。"""
     ic = compute_ic(F_train, y_train)

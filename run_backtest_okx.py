@@ -109,45 +109,48 @@ def main() -> None:
                str(df["datetime"].iloc[s["start"]])[:16],
                str(df["datetime"].iloc[s["end"] - 1])[:16], bh[s["name"]] * 100))
 
-    # ---------------- 5. 因子筛选(仅训练段)
-    print("\n=== 因子筛选(仅用训练段, IC=Spearman, 相关性阈值去冗余 |corr|<%.2f) ==="
-          % C.DEDUP_MAX_CORR)
-    sel = factor_select.select_factors(Fmat.iloc[tr].reset_index(drop=True),
-                                       y.iloc[tr].reset_index(drop=True))
-    ic: pd.Series = sel["ic"]
+    # ---------------- 5. 因子筛选(仅训练段) + 去冗余阈值候选集
+    print("\n=== 因子筛选(仅用训练段, IC=Spearman) + 去冗余阈值候选 ===")
+    ic, fsets = factor_select.factor_sets_by_dedup(Fmat.iloc[tr].reset_index(drop=True),
+                                                   y.iloc[tr].reset_index(drop=True),
+                                                   C.OOF_DEDUP_CORR_GRID)
     print("  全因子 |IC| 分位: P50=%.4f P75=%.4f P90=%.4f 最大=%.4f" %
           (ic.abs().median(), ic.abs().quantile(.75), ic.abs().quantile(.90), ic.abs().max()))
     print("  |IC| >= %.3f 的因子: %d / %d" %
           (C.IC_MIN_ABS, int((ic.abs() >= C.IC_MIN_ABS).sum()), len(ic)))
-    for side in ("long", "short"):
-        kept = sel["selected"][side]
-        n_drop = len(sel["dropped_by_corr"][side])
-        print("  [%s] 方向过滤候选 %d 个 -> 去冗余丢弃 %d 个 -> 保留 %d 个: %s" %
-              (side, len(kept) + n_drop, n_drop, len(kept), ", ".join(kept)))
+    for d in C.OOF_DEDUP_CORR_GRID:
+        print("  去冗余 |corr|<%.2f -> 多头 %2d 个 / 空头 %2d 个" %
+              (d, len(fsets[d]["long"]), len(fsets[d]["short"])))
 
-    # ---------------- 6/7/8/9/12/13. 逐方向在 OOF 上优化(模型层 × 执行层)
-    n_combo = len(models.MODEL_GRID) * len(C.EXEC_THR_GRID) * len(C.TP_ATR_GRID) * len(C.SL_ATR_GRID)
-    print("\n=== 仅在 OOF 上优化: %d 个组合(模型%d × 阈值%d × 止盈%d × 止损%d), 多空独立 ==="
-          % (n_combo, len(models.MODEL_GRID), len(C.EXEC_THR_GRID), len(C.TP_ATR_GRID),
-             len(C.SL_ATR_GRID)))
+    # ---------------- 6/7/8/9/12/13. 逐方向在 OOF 上优化(外层 去冗余×模型, 内层 执行)
+    n_combo = (len(C.OOF_DEDUP_CORR_GRID) * len(models.MODEL_GRID) * len(C.EXEC_THR_GRID)
+               * len(C.TP_ATR_GRID) * len(C.SL_ATR_GRID) * len(C.OOF_HOLD_GRID))
+    print("\n=== 仅在 OOF 上优化: 外层 %d 档去冗余 × %d 模型 | 内层 %d 阈值分位 × %d 止盈 × %d 止损 × %d 持有期 = %d 组/方向 ==="
+          % (len(C.OOF_DEDUP_CORR_GRID), len(models.MODEL_GRID), len(C.EXEC_THR_GRID),
+             len(C.TP_ATR_GRID), len(C.SL_ATR_GRID), len(C.OOF_HOLD_GRID), n_combo))
     frozen, grids = {}, {}
     for side in ("long", "short"):
-        facs = sel["selected"][side]
-        if not facs:
+        fmap = {d: fsets[d][side] for d in C.OOF_DEDUP_CORR_GRID}
+        if not any(fmap.values()):
             print("  [%s] 无可用因子, 跳过" % side)
             continue
-        best, agg, raw = optimize.optimize_on_oof(Fmat, y, facs, side, ohlc, atr, times, tr, oof)
+        best, agg, raw = optimize.optimize_full_on_oof(
+            Fmat, y, fmap, side, ohlc, atr, times, tr, oof)
         frozen[side] = best
         grids[side] = agg
         agg.to_csv(C.REPORT_DIR / ("oof_grid_%s.csv" % side), index=False)
-        print("  [%s] 选定: 模型=%s  阈值分位=%.2f(绝对阈值 %.6f)  止盈=%.2fATR  止损=%.2fATR"
-              % (side, best["model_name"], best["thr_q"], best["thr_abs"],
-                 best["tp_mult"], best["sl_mult"]))
+        print("  [%s] 选定: 去冗余|corr|<%.2f(因子%d个)  模型=%s  阈值分位=%.2f(绝对 %.6f)  "
+              "止盈=%.2fATR 止损=%.2fATR 最长持有=%d根"
+              % (side, best["dedup"], len(best["model"].factors), best["model_name"],
+                 best["thr_q"], best["thr_abs"], best["tp_mult"], best["sl_mult"],
+                 best["max_hold"]))
         print("      OOF 最优组合前 3:")
         for _, r in agg.head(3).iterrows():
-            print("        %-9s q=%.1f tp=%.1f sl=%.1f -> 夏普%+.2f 收益%+.2f%% 笔数%d 止盈率%.0f%% 胜率%.0f%%"
-                  % (r["model"], r["thr_q"], r["tp_mult"], r["sl_mult"], r["sharpe"],
-                     r["total_return"] * 100, int(r["n"]), r["tp_rate"] * 100, r["win_rate"] * 100))
+            print("        |corr|<%.2f 因子%2d %-9s q=%.1f tp=%.1f sl=%.1f hold=%2d -> "
+                  "夏普%+.2f 收益%+.2f%% 笔数%d 止盈率%.0f%% 胜率%.0f%%"
+                  % (r["dedup"], r["n_factors"], r["model"], r["thr_q"], r["tp_mult"],
+                     r["sl_mult"], r["max_hold"], r["sharpe"], r["total_return"] * 100,
+                     int(r["n"]), r["tp_rate"] * 100, r["win_rate"] * 100))
 
     # ---------------- 冻结后在 OOF(确认) 与 OOC(仅观察) 各评估一次
     print("\n=== 冻结配置 -> OOF(优化段) 与 OOC(仅观察, 绝不参与选择) ===")
@@ -157,7 +160,7 @@ def main() -> None:
         for seg_name, seg in (("train", tr), ("oof", oof), ("ooc", ooc)):
             r = execution.evaluate_with_threshold(
                 pred, ohlc, atr, times, side, seg.start, seg.stop,
-                cfg["thr_abs"], cfg["tp_mult"], cfg["sl_mult"])
+                cfg["thr_abs"], cfg["tp_mult"], cfg["sl_mult"], max_hold=cfg["max_hold"])
             metrics["%s_%s" % (side, seg_name)] = r["metrics"]
             curves["%s_%s" % (side, seg_name)] = r["equity"]
             trades_by_seg["%s_%s" % (side, seg_name)] = r["trades"]
@@ -169,8 +172,9 @@ def main() -> None:
                abs(gm["total_return"] - om["total_return"]) < 1e-9, \
                "OOF 冻结评估与网格最优不一致: %s" % side
 
-        print("\n  --- %s (模型 %s, 因子 %d 个, 绝对阈值 %.6f) ---"
-              % (side, cfg["model_name"], len(cfg["model"].factors), cfg["thr_abs"]))
+        print("\n  --- %s (去冗余|corr|<%.2f, 模型 %s, 因子 %d 个, 绝对阈值 %.6f, 止盈%.2f 止损%.2f, 持有<=%d) ---"
+              % (side, cfg["dedup"], cfg["model_name"], len(cfg["model"].factors),
+                 cfg["thr_abs"], cfg["tp_mult"], cfg["sl_mult"], cfg["max_hold"]))
         print("  %-6s %6s %7s %7s %9s %10s %8s %8s %9s %9s" %
               ("段", "笔数", "胜率%", "盈亏比", "总收益%", "买入持有%", "夏普", "卡玛",
                "最大回撤%", "盈亏USDT"))
@@ -206,21 +210,21 @@ def main() -> None:
         print("\n曲线已保存: %s" % (C.REPORT_DIR / "equity_curve.png"))
 
     # ---------------- 10/11. 落盘
-    _save_outputs(df, ic, sel, frozen, grids, metrics, bh, sl, trades_by_seg)
-    _write_report(df, ic, sel, frozen, metrics, bh, sl)
+    _save_outputs(df, ic, frozen, grids, metrics, bh, sl, trades_by_seg)
+    _write_report(df, ic, frozen, metrics, bh, sl)
     print("报告已落盘: %s" % C.REPORT_DIR)
 
 
 # ================================================================ 落盘
-def _save_outputs(df, ic, sel, frozen, grids, metrics, bh, sl, trades_by_seg) -> None:
+def _save_outputs(df, ic, frozen, grids, metrics, bh, sl, trades_by_seg) -> None:
     report = {
         "config": {k: getattr(C, k) for k in
                    ("SYMBOL", "INTERVAL", "BACKTEST_SOURCE", "HORIZON", "LABEL_MODE",
                     "TRAIN_FRAC", "OOF_FRAC", "OOC_FRAC", "CV_N_SPLITS", "CV_EMBARGO_BARS",
-                    "IC_MIN_ABS", "DEDUP_MAX_CORR", "INIT_CAPITAL", "TRADE_NOTIONAL",
-                    "MAX_HOLD_BARS", "FEE_RATE", "SLIP_RATE", "TP_ATR_GRID", "SL_ATR_GRID",
-                    "EXEC_THR_GRID", "OOF_MIN_TRADES", "MIN_TP_RATE",
-                    "OBJECTIVE_PRIMARY", "OBJECTIVE_SECONDARY")},
+                    "IC_MIN_ABS", "DEDUP_MAX_CORR", "OOF_DEDUP_CORR_GRID", "INIT_CAPITAL",
+                    "TRADE_NOTIONAL", "MAX_HOLD_BARS", "OOF_HOLD_GRID", "FEE_RATE", "SLIP_RATE",
+                    "TP_ATR_GRID", "SL_ATR_GRID", "EXEC_THR_GRID", "OOF_MIN_TRADES",
+                    "MIN_TP_RATE", "OBJECTIVE_PRIMARY", "OBJECTIVE_SECONDARY")},
         "data": {"rows": int(len(df)), "start": str(df["datetime"].iloc[0]),
                  "end": str(df["datetime"].iloc[-1])},
         "split": sl, "buy_hold": bh, "sides": {},
@@ -231,9 +235,12 @@ def _save_outputs(df, ic, sel, frozen, grids, metrics, bh, sl, trades_by_seg) ->
         imp.to_csv(C.REPORT_DIR / ("importance_%s.csv" % side), index=False)
         report["sides"][side] = {
             "model_name": cfg["model_name"],
-            "factors": list(cfg["model"].factors),
+            "factors": list(tm.factors),
+            "o2o_sweep": {"dedup_max_corr": cfg["dedup"], "max_hold": cfg["max_hold"],
+                          "n_factors": len(tm.factors)},
             "frozen_params": {"thr_q": cfg["thr_q"], "thr_abs": cfg["thr_abs"],
-                              "tp_mult": cfg["tp_mult"], "sl_mult": cfg["sl_mult"]},
+                              "tp_mult": cfg["tp_mult"], "sl_mult": cfg["sl_mult"],
+                              "max_hold": cfg["max_hold"], "dedup_max_corr": cfg["dedup"]},
             "cv_rmse": [float(x) for x in tm.cv_rmse],
             "top_importance": imp.head(10).to_dict("records"),
             "oof_grid_top10": grids[side].head(10).to_dict("records"),
@@ -245,7 +252,8 @@ def _save_outputs(df, ic, sel, frozen, grids, metrics, bh, sl, trades_by_seg) ->
     ic.to_frame("ic").sort_values("ic", key=lambda s: s.abs(), ascending=False).to_csv(
         C.REPORT_DIR / "factor_ic.csv")
     (C.REPORT_DIR / "selected_factors.json").write_text(
-        json.dumps({s: sel["selected"][s] for s in sel["selected"]}, ensure_ascii=False, indent=2),
+        json.dumps({s: list(frozen[s]["model"].factors) for s in frozen},
+                   ensure_ascii=False, indent=2),
         encoding="utf-8")
     (C.REPORT_DIR / "metrics.json").write_text(
         json.dumps(report, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
@@ -274,10 +282,15 @@ def _write_consistency(report) -> None:
         (sp["train"]["start"], sp["train"]["end"], sp["oof"]["start"], sp["oof"]["end"],
          sp["ooc"]["start"], sp["ooc"]["end"]))
     chk("训练/筛选只使用 train 段", True,
-        "因子筛选 select_factors(F[tr], y[tr]); 模型 train_side(F[tr], y[tr])")
+        "因子筛选 factor_sets_by_dedup(F[tr], y[tr]); 模型 train_side(F[tr], y[tr])")
     chk("优化只使用 OOF 段", True,
-        "optimize_on_oof 网格评估区间 = oof 切片; 目标 %s>%s"
-        % (C.OBJECTIVE_PRIMARY, C.OBJECTIVE_SECONDARY))
+        "optimize_full_on_oof: 外层(去冗余阈值 %s × 模型) + 内层(阈值×止盈×止损×持有期 %s); "
+        "网格评估区间 = oof 切片; 目标 %s > %s"
+        % (list(C.OOF_DEDUP_CORR_GRID), list(C.OOF_HOLD_GRID),
+           C.OBJECTIVE_PRIMARY, C.OBJECTIVE_SECONDARY))
+    chk("因子只来自 train, 去冗余阈值由 OOF 选定",
+        all(sides[s]["o2o_sweep"]["dedup_max_corr"] in C.OOF_DEDUP_CORR_GRID for s in sides),
+        json.dumps({s: sides[s]["o2o_sweep"] for s in sides}, ensure_ascii=False))
     chk("OOC 阈值来自 OOF(冻结绝对阈值, 未偷看 OOC 分布)",
         all("thr_abs" in sides[s]["frozen_params"] for s in sides),
         json.dumps({s: round(sides[s]["frozen_params"]["thr_abs"], 6) for s in sides},
@@ -304,7 +317,7 @@ def _write_consistency(report) -> None:
     (C.REPORT_DIR / "consistency_report.md").write_text("\n".join(lines), encoding="utf-8")
 
 
-def _write_report(df, ic, sel, frozen, metrics, bh, sl) -> None:
+def _write_report(df, ic, frozen, metrics, bh, sl) -> None:
     sp = {s["name"]: s for s in sl}
 
     def row(side, seg):
@@ -318,18 +331,21 @@ def _write_report(df, ic, sel, frozen, metrics, bh, sl) -> None:
              "- 切分: train %d / OOF %d / OOC %d (%.0f%%/%.0f%%/%.0f%%)" %
              (sp["train"]["n"], sp["oof"]["n"], sp["ooc"]["n"],
               C.TRAIN_FRAC * 100, C.OOF_FRAC * 100, C.OOC_FRAC * 100),
-             "- 本金 %.0f USDT, 单笔 %.0f USDT, 手续费单边 %.1fbp(双边 %.1fbp), 最长持有 %d 根" %
-             (C.INIT_CAPITAL, C.TRADE_NOTIONAL, C.FEE_RATE * 1e4, 2 * C.FEE_RATE * 1e4, C.MAX_HOLD_BARS),
+             "- 本金 %.0f USDT, 单笔 %.0f USDT, 手续费单边 %.1fbp(双边 %.1fbp)" %
+             (C.INIT_CAPITAL, C.TRADE_NOTIONAL, C.FEE_RATE * 1e4, 2 * C.FEE_RATE * 1e4),
              "- 标签: 未来 %d 根收益 / ATR(制度中性)" % C.HORIZON, "",
-             "## 因子(多空独立筛选, 仅用 train)", "",
-             "- 多头: %s" % (", ".join(sel["selected"]["long"]) or "无"),
-             "- 空头: %s" % (", ".join(sel["selected"]["short"]) or "无"), "",
-             "## 执行层与模型(OOF 优化后冻结)", ""]
+             "## 因子(多空独立筛选, 仅用 train; 去冗余阈值由 OOF 选定)", ""]
     for side in frozen:
         c = frozen[side]
-        lines.append("- %s: 模型 %s, 阈值分位 %.2f(绝对 %.6f), 止盈 %.2f ATR, 止损 %.2f ATR, 因子 %d 个"
+        lines.append("- %s(去冗余 |corr|<%.2f, %d 个): %s"
+                     % (side, c["dedup"], len(c["model"].factors),
+                        ", ".join(c["model"].factors)))
+    lines += ["", "## 执行层与模型(OOF 优化后冻结)", ""]
+    for side in frozen:
+        c = frozen[side]
+        lines.append("- %s: 模型 %s, 阈值分位 %.2f(绝对 %.6f), 止盈 %.2f ATR, 止损 %.2f ATR, 最长持有 %d 根"
                      % (side, c["model_name"], c["thr_q"], c["thr_abs"],
-                        c["tp_mult"], c["sl_mult"], len(c["model"].factors)))
+                        c["tp_mult"], c["sl_mult"], c["max_hold"]))
     lines += ["", "## 绩效(train 为样本内参考; OOF 为优化段; OOC 仅观察)", "",
               "| 方向 | 段 | 总收益% | 夏普 | 卡玛 | 最大回撤% | 胜率% | 盈亏比 | 笔数 |",
               "|---|---|---|---|---|---|---|---|---|"]
@@ -343,9 +359,18 @@ def _write_report(df, ic, sel, frozen, metrics, bh, sl) -> None:
     for s in ("train", "oof", "ooc"):
         lines.append("| %s | %+.2f |" % (s, bh[s] * 100))
     lines += ["", "## 说明", "",
-              "- 优化**只在 OOF** 上进行(模型候选 × 阈值 × 止盈 × 止损, 多空独立); OOC 全程只观察。",
+              "- 优化**只在 OOF** 上进行: 外层 %d 档去冗余阈值 × %d 个模型候选, 内层 %d 阈值分位 × "
+              "%d 止盈 × %d 止损 × %d 最长持有期; 多空独立; OOC 全程只观察。"
+              % (len(C.OOF_DEDUP_CORR_GRID), len(models.MODEL_GRID), len(C.EXEC_THR_GRID),
+                 len(C.TP_ATR_GRID), len(C.SL_ATR_GRID), len(C.OOF_HOLD_GRID)),
+              "- 目标函数: 主目标 %s, 次目标 %s(门槛: 笔数 >= %d, 止盈率 >= %.2f)。"
+              % (C.OBJECTIVE_PRIMARY, C.OBJECTIVE_SECONDARY, C.OOF_MIN_TRADES, C.MIN_TP_RATE),
               "- OOC 使用由 OOF 冻结的**绝对阈值**, 不使用 OOC 自身分布。",
-              "- 因子库含趋势类(ADX、均线斜率、MACD、线性回归斜率、区间位置等); 欧易数据无订单流字段, 相关因子自动跳过。"]
+              "- 因子库含趋势类(ADX、均线斜率、MACD、线性回归斜率、区间位置等); 欧易数据无订单流字段, 相关因子自动跳过。",
+              "- 注意: OOF 上比较次数已从 %d 组升至 %d 组/方向, 选优噪声随之上升 -> OOC 才是最终检验。"
+              % (len(models.MODEL_GRID) * 3 * 5 * 5,
+                 len(C.OOF_DEDUP_CORR_GRID) * len(models.MODEL_GRID) * len(C.EXEC_THR_GRID)
+                 * len(C.TP_ATR_GRID) * len(C.SL_ATR_GRID) * len(C.OOF_HOLD_GRID))]
     (C.REPORT_DIR / "backtest_report.md").write_text("\n".join(lines), encoding="utf-8")
 
 

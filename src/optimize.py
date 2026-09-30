@@ -4,6 +4,8 @@
 本文件有两个入口:
   - `optimize_on_oof` (需求7/8/9 的**主路径**): 用 **train** 训练各模型候选,
     再在 **OOF** 上网格评估每个 (模型, 执行) 组合并选优; OOC 全程只观察。
+    `optimize_full_on_oof` 是它的**扩展版**(主脚本使用): 外层再叠「去冗余阈值」,
+    即把「因子集松紧」也交给 OOF 选优; 内层执行网格增加「最长持有期」。
   - `nested_select` (备用路径, 供旧流水线 run_pipeline.py 使用): 在 train 内部做
     嵌套 CV, 以各折均值选优, 不触碰 OOF/OOC。
 
@@ -149,6 +151,78 @@ def optimize_on_oof(F: pd.DataFrame, y: pd.Series, factors: List[str], side: str
     out = dict(model_name=name, model=trained[name], thr_q=float(best["thr_q"]),
                thr_abs=float(best["thr_abs"]), tp_mult=float(best["tp_mult"]),
                sl_mult=float(best["sl_mult"]),
+               oof_metrics={k: float(best[k]) for k in
+                            ("n", "sharpe", "total_return", "calmar", "max_drawdown",
+                             "win_rate", "payoff", "tp_rate")})
+    return out, agg, raw
+
+
+# ================================================ 主路径扩展: OOF 外层扫描(去冗余 × 持有期)
+def _exec_grid_oof() -> List[dict]:
+    """OOF 外层扫描用的执行网格: 阈值分位 × 止盈 × 止损 × **最长持有期**。"""
+    return [dict(thr_q=q, tp_mult=tp, sl_mult=sl, max_hold=h)
+            for q, tp, sl, h in product(C.EXEC_THR_GRID, C.TP_ATR_GRID,
+                                        C.SL_ATR_GRID, C.OOF_HOLD_GRID)]
+
+
+def optimize_full_on_oof(F: pd.DataFrame, y: pd.Series, factor_sets: Dict[float, List[str]],
+                         side: str, ohlc: dict, atr: np.ndarray, times: np.ndarray,
+                         train_slice: slice, oof_slice: slice,
+                         verbose: bool = True) -> Tuple[dict, pd.DataFrame, pd.DataFrame]:
+    """在 **OOF** 上做两阶段选优, 训练只用 train、选择只用 OOF。
+
+    外层: 去冗余阈值(决定因子集) × 模型超参候选;
+    内层: 阈值分位 × 止盈 × 止损 × 最长持有期。
+    每个外层组合都用 train 段**重新筛因子并重新训练**, 避免"因子集"成为未优化的死参数。
+
+    factor_sets: {去冗余阈值: 该方向的因子列表}(由 factor_select 在 train 上产出)
+    返回 (best, agg, raw, trained); trained[(dedup, model_name)] 供冻结时取回模型。
+    """
+    ts, te = train_slice.start, train_slice.stop
+    grid = _exec_grid_oof()
+    rows: List[dict] = []
+    trained: Dict[Tuple[float, str], models.TrainedModel] = {}
+
+    for dedup, facs in factor_sets.items():
+        if not facs:
+            print("    [%s] 去冗余 |corr|<%.2f 无可用因子, 跳过" % (side, dedup))
+            continue
+        for mc in models.MODEL_GRID:
+            tm = models.train_side(F.iloc[ts:te], y.iloc[ts:te], facs, side,
+                                   params=models.resolve_params(mc), verbose=False)
+            trained[(dedup, mc["name"])] = tm
+            pred = tm.predict(F)                       # 全序列预测, 仅取 OOF 段评估
+            for ec in grid:
+                r = evaluate_with_params(pred, ohlc, atr, times, side,
+                                         oof_slice.start, oof_slice.stop,
+                                         ec["thr_q"], ec["tp_mult"], ec["sl_mult"],
+                                         max_hold=ec["max_hold"])
+                m = r["metrics"]
+                rows.append(dict(dedup=float(dedup), n_factors=len(facs), model=mc["name"],
+                                 thr_q=float(ec["thr_q"]), tp_mult=float(ec["tp_mult"]),
+                                 sl_mult=float(ec["sl_mult"]), max_hold=int(ec["max_hold"]),
+                                 thr_abs=float(r["thr_abs"]), n=int(m["n_trades"]),
+                                 sharpe=float(m["sharpe"]), total_return=float(m["total_return"]),
+                                 calmar=float(m["calmar"]),
+                                 max_drawdown=float(m["max_drawdown"]),
+                                 win_rate=float(m["win_rate"]), payoff=float(m["payoff_ratio"]),
+                                 tp_rate=float(m["tp_rate"])))
+        if verbose:
+            print("    [%s] 去冗余 |corr|<%.2f -> 因子 %2d 个 | %d 个模型 × %d 组执行 = %d 组已评估"
+                  % (side, dedup, len(facs), len(models.MODEL_GRID), len(grid),
+                     len(models.MODEL_GRID) * len(grid)))
+
+    raw = pd.DataFrame(rows)
+    if raw.empty:
+        raise RuntimeError("OOF 网格为空: %s" % side)
+    agg = _select_best(raw)
+    best = agg.iloc[0]
+    name = best["model"]
+    out = dict(dedup=float(best["dedup"]), model_name=name,
+               model=trained[(float(best["dedup"]), name)],
+               thr_q=float(best["thr_q"]), thr_abs=float(best["thr_abs"]),
+               tp_mult=float(best["tp_mult"]), sl_mult=float(best["sl_mult"]),
+               max_hold=int(best["max_hold"]),
                oof_metrics={k: float(best[k]) for k in
                             ("n", "sharpe", "total_return", "calmar", "max_drawdown",
                              "win_rate", "payoff", "tp_rate")})
