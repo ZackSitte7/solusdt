@@ -1,0 +1,790 @@
+{
+ "config": {
+  "SYMBOL": "SOLUSDT",
+  "INTERVAL": "4h",
+  "SOURCE": "okx",
+  "HORIZON": 3,
+  "SELECT_ON": "oof",
+  "V3_ENFORCE_TP_GT_SL": true,
+  "V4_MAX_VIF": 10.0,
+  "V4_MIN_FACTORS": 5,
+  "V5_REGIME_GRID": [
+   "none",
+   "sma100",
+   "sma200",
+   "sma200_slope"
+  ],
+  "V5_REGIME_MA": {
+   "sma100": 100,
+   "sma200": 200,
+   "sma200_slope": 200
+  },
+  "OBJECTIVE_PRIMARY": "total_return",
+  "OBJECTIVE_SECONDARY": "sharpe",
+  "OOF_DEDUP_CORR_GRID": [
+   0.8,
+   0.85,
+   0.9,
+   0.95
+  ],
+  "EXEC_THR_GRID": [
+   0.4,
+   0.5,
+   0.6,
+   0.7,
+   0.8
+  ],
+  "TP_ATR_GRID": [
+   1.0,
+   1.5,
+   2.0,
+   2.5,
+   3.0,
+   4.0
+  ],
+  "SL_ATR_GRID": [
+   0.5,
+   0.75,
+   1.0,
+   1.5,
+   2.0,
+   2.5
+  ],
+  "OOF_HOLD_GRID": [
+   6,
+   12,
+   24
+  ],
+  "FEE_RATE": 0.0005,
+  "SLIP_RATE": 0.0,
+  "INIT_CAPITAL": 1000.0,
+  "TRADE_NOTIONAL": 100.0
+ },
+ "sides": {
+  "long": {
+   "model_name": "base",
+   "factors": [
+    "vol_ratio_5_20",
+    "range_ratio",
+    "atr_ratio_chg",
+    "rv_12",
+    "ma_align",
+    "vol_ma_ratio",
+    "rv_50",
+    "vol_z_20",
+    "pos_in_range_100",
+    "ret_24",
+    "ma_slope_50",
+    "ma_ratio_200",
+    "rsi_14",
+    "hour_cos"
+   ],
+   "regime_rule": "sma100",
+   "frozen_params": {
+    "dedup": 0.8,
+    "thr_q": 0.7,
+    "thr_abs": 0.0027703769776574855,
+    "tp_mult": 2.5,
+    "sl_mult": 2.0,
+    "max_hold": 24
+   },
+   "oof_metrics": {
+    "n": 82.0,
+    "sharpe": 3.249676560733233,
+    "total_return": 0.07327883387333367,
+    "calmar": 3.276776842842516,
+    "max_drawdown": -0.024973253181765354,
+    "win_rate": 0.5609756097560976,
+    "payoff": 1.1240487738468625,
+    "tp_rate": 0.4878048780487805
+   },
+   "metrics": {
+    "train": {
+     "n_trades": 416.0,
+     "win_rate": 0.5240384615384616,
+     "avg_win": 8.21444374355209,
+     "avg_loss": -6.954404037257222,
+     "payoff_ratio": 1.18118586431625,
+     "profit_factor": 1.3004975677825379,
+     "avg_ret": 0.009946556171091973,
+     "total_pnl": 413.77673671742616,
+     "avg_bars": 11.584134615384615,
+     "tp_rate": 0.4495192307692308,
+     "sl_rate": 0.40384615384615385,
+     "timeout_rate": 0.1466346153846154,
+     "final_equity": 1413.7767367174263,
+     "total_return": 0.4137767367174263,
+     "sharpe": 2.196420373879428,
+     "calmar": 1.4705561758572763,
+     "max_drawdown": -0.058498624942509236
+    },
+    "oof": {
+     "n_trades": 82.0,
+     "win_rate": 0.5609756097560976,
+     "avg_win": 5.244346482707943,
+     "avg_loss": -4.665586231423103,
+     "payoff_ratio": 1.1240487738468625,
+     "profit_factor": 1.4362845443598797,
+     "avg_ret": 0.008936443155284596,
+     "total_pnl": 73.27883387333368,
+     "avg_bars": 11.231707317073171,
+     "tp_rate": 0.4878048780487805,
+     "sl_rate": 0.3902439024390244,
+     "timeout_rate": 0.12195121951219512,
+     "final_equity": 1073.2788338733337,
+     "total_return": 0.07327883387333367,
+     "sharpe": 3.249676560733233,
+     "calmar": 3.276776842842516,
+     "max_drawdown": -0.024973253181765354
+    },
+    "ooc": {
+     "n_trades": 83.0,
+     "win_rate": 0.4457831325301205,
+     "avg_win": 4.209719123333013,
+     "avg_loss": -3.5231957950708197,
+     "payoff_ratio": 1.1948581254617425,
+     "profit_factor": 0.9610815356974884,
+     "avg_ret": -0.0007599275915585812,
+     "total_pnl": -6.307399009936232,
+     "avg_bars": 10.795180722891565,
+     "tp_rate": 0.3855421686746988,
+     "sl_rate": 0.46987951807228917,
+     "timeout_rate": 0.14457831325301204,
+     "final_equity": 993.6926009900637,
+     "total_return": -0.006307399009936265,
+     "sharpe": -0.3646276967288791,
+     "calmar": -0.22181280281445717,
+     "max_drawdown": -0.031600089819245
+    }
+   }
+  },
+  "short": {
+   "model_name": "shallow",
+   "factors": [
+    "mom_accel",
+    "hour_sin",
+    "gap",
+    "close_pos_in_bar",
+    "ret_1",
+    "dow_cos",
+    "dow_sin",
+    "lower_shadow",
+    "consec_up",
+    "consec_dn"
+   ],
+   "regime_rule": "none",
+   "frozen_params": {
+    "dedup": 0.8,
+    "thr_q": 0.5,
+    "thr_abs": 0.02225569419366929,
+    "tp_mult": 2.5,
+    "sl_mult": 1.0,
+    "max_hold": 24
+   },
+   "oof_metrics": {
+    "n": 216.0,
+    "sharpe": 2.6730600088804843,
+    "total_return": 0.1019924095051099,
+    "calmar": 2.324215506800804,
+    "max_drawdown": -0.0490791882589211,
+    "win_rate": 0.35185185185185186,
+    "payoff": 2.3524722689998003,
+    "tp_rate": 0.3148148148148148
+   },
+   "metrics": {
+    "train": {
+     "n_trades": 923.0,
+     "win_rate": 0.3456121343445287,
+     "avg_win": 7.9177420528809765,
+     "avg_loss": -3.8754659712761947,
+     "payoff_ratio": 2.0430425945073276,
+     "profit_factor": 1.0790241517348302,
+     "avg_ret": 0.0020040982472178757,
+     "total_pnl": 184.9782682182099,
+     "avg_bars": 7.465872156013001,
+     "tp_rate": 0.30227518959913324,
+     "sl_rate": 0.6435536294691224,
+     "timeout_rate": 0.05417118093174431,
+     "final_equity": 1178.3347035330767,
+     "total_return": 0.17833470353307668,
+     "sharpe": 0.7796103581494082,
+     "calmar": 0.27234513503672353,
+     "max_drawdown": -0.14645052361415922
+    },
+    "oof": {
+     "n_trades": 216.0,
+     "win_rate": 0.35185185185185186,
+     "avg_win": 6.185804380986718,
+     "avg_loss": -2.6294908817848612,
+     "payoff_ratio": 2.3524722689998003,
+     "profit_factor": 1.2770563745998915,
+     "avg_ret": 0.00472187081042176,
+     "total_pnl": 101.99240950511,
+     "avg_bars": 7.106481481481482,
+     "tp_rate": 0.3148148148148148,
+     "sl_rate": 0.6388888888888888,
+     "timeout_rate": 0.046296296296296294,
+     "final_equity": 1101.99240950511,
+     "total_return": 0.1019924095051099,
+     "sharpe": 2.6730600088804843,
+     "calmar": 2.324215506800804,
+     "max_drawdown": -0.0490791882589211
+    },
+    "ooc": {
+     "n_trades": 197.0,
+     "win_rate": 0.29441624365482233,
+     "avg_win": 4.809620114412946,
+     "avg_loss": -2.0006247685019973,
+     "payoff_ratio": 2.4040590670154667,
+     "profit_factor": 1.003132560337389,
+     "avg_ret": 4.421948295295303e-05,
+     "total_pnl": 0.8711238141731741,
+     "avg_bars": 7.756345177664975,
+     "tp_rate": 0.25380710659898476,
+     "sl_rate": 0.6903553299492385,
+     "timeout_rate": 0.05583756345177665,
+     "final_equity": 1000.8711238141732,
+     "total_return": 0.0008711238141732025,
+     "sharpe": 0.05292068809558021,
+     "calmar": 0.019586466345022844,
+     "max_drawdown": -0.049445048032211725
+    }
+   }
+  }
+ },
+ "segments": [
+  {
+   "side": "long",
+   "seg": "train",
+   "regime": "sma100",
+   "total_return": 0.4137767367174263,
+   "sharpe": 2.196420373879428,
+   "calmar": 1.4705561758572763,
+   "max_drawdown": -0.058498624942509236,
+   "win_rate": 0.5240384615384616,
+   "payoff_ratio": 1.18118586431625,
+   "n_trades": 416.0,
+   "tp_rate": 0.4495192307692308,
+   "sl_rate": 0.40384615384615385,
+   "timeout_rate": 0.1466346153846154
+  },
+  {
+   "side": "long",
+   "seg": "oof",
+   "regime": "sma100",
+   "total_return": 0.07327883387333367,
+   "sharpe": 3.249676560733233,
+   "calmar": 3.276776842842516,
+   "max_drawdown": -0.024973253181765354,
+   "win_rate": 0.5609756097560976,
+   "payoff_ratio": 1.1240487738468625,
+   "n_trades": 82.0,
+   "tp_rate": 0.4878048780487805,
+   "sl_rate": 0.3902439024390244,
+   "timeout_rate": 0.12195121951219512
+  },
+  {
+   "side": "long",
+   "seg": "ooc",
+   "regime": "sma100",
+   "total_return": -0.006307399009936265,
+   "sharpe": -0.3646276967288791,
+   "calmar": -0.22181280281445717,
+   "max_drawdown": -0.031600089819245,
+   "win_rate": 0.4457831325301205,
+   "payoff_ratio": 1.1948581254617425,
+   "n_trades": 83.0,
+   "tp_rate": 0.3855421686746988,
+   "sl_rate": 0.46987951807228917,
+   "timeout_rate": 0.14457831325301204
+  },
+  {
+   "side": "short",
+   "seg": "train",
+   "regime": "none",
+   "total_return": 0.17833470353307668,
+   "sharpe": 0.7796103581494082,
+   "calmar": 0.27234513503672353,
+   "max_drawdown": -0.14645052361415922,
+   "win_rate": 0.3456121343445287,
+   "payoff_ratio": 2.0430425945073276,
+   "n_trades": 923.0,
+   "tp_rate": 0.30227518959913324,
+   "sl_rate": 0.6435536294691224,
+   "timeout_rate": 0.05417118093174431
+  },
+  {
+   "side": "short",
+   "seg": "oof",
+   "regime": "none",
+   "total_return": 0.1019924095051099,
+   "sharpe": 2.6730600088804843,
+   "calmar": 2.324215506800804,
+   "max_drawdown": -0.0490791882589211,
+   "win_rate": 0.35185185185185186,
+   "payoff_ratio": 2.3524722689998003,
+   "n_trades": 216.0,
+   "tp_rate": 0.3148148148148148,
+   "sl_rate": 0.6388888888888888,
+   "timeout_rate": 0.046296296296296294
+  },
+  {
+   "side": "short",
+   "seg": "ooc",
+   "regime": "none",
+   "total_return": 0.0008711238141732025,
+   "sharpe": 0.05292068809558021,
+   "calmar": 0.019586466345022844,
+   "max_drawdown": -0.049445048032211725,
+   "win_rate": 0.29441624365482233,
+   "payoff_ratio": 2.4040590670154667,
+   "n_trades": 197.0,
+   "tp_rate": 0.25380710659898476,
+   "sl_rate": 0.6903553299492385,
+   "timeout_rate": 0.05583756345177665
+  }
+ ],
+ "prune_log": {
+  "long|0.8": {
+   "before": [
+    "vol_ratio_5_20",
+    "range_ratio",
+    "atr_ratio_chg",
+    "rv_12",
+    "ma_align",
+    "vol_ma_ratio",
+    "rv_50",
+    "vol_z_20",
+    "pos_in_range_100",
+    "ret_24",
+    "ma_slope_50",
+    "ma_ratio_200",
+    "rsi_14",
+    "hour_cos"
+   ],
+   "after": [
+    "vol_ratio_5_20",
+    "range_ratio",
+    "atr_ratio_chg",
+    "rv_12",
+    "ma_align",
+    "vol_ma_ratio",
+    "rv_50",
+    "vol_z_20",
+    "pos_in_range_100",
+    "ret_24",
+    "ma_slope_50",
+    "ma_ratio_200",
+    "rsi_14",
+    "hour_cos"
+   ],
+   "dropped": [],
+   "max_vif_before": 4.734261218068847,
+   "max_vif_after": 4.734261218068847
+  },
+  "long|0.85": {
+   "before": [
+    "vol_ratio_5_20",
+    "range_ratio",
+    "atr_ratio_chg",
+    "rv_12",
+    "ma_align",
+    "vol_ma_ratio",
+    "rv_50",
+    "bb_width_20",
+    "vol_z_20",
+    "pos_in_range_100",
+    "ret_24",
+    "ma_slope_50",
+    "pos_in_range_50",
+    "ma_ratio_200",
+    "hour_cos",
+    "bb_pos_20"
+   ],
+   "after": [
+    "vol_ratio_5_20",
+    "range_ratio",
+    "atr_ratio_chg",
+    "rv_12",
+    "ma_align",
+    "vol_ma_ratio",
+    "rv_50",
+    "bb_width_20",
+    "vol_z_20",
+    "pos_in_range_100",
+    "ret_24",
+    "ma_slope_50",
+    "pos_in_range_50",
+    "ma_ratio_200",
+    "hour_cos",
+    "bb_pos_20"
+   ],
+   "dropped": [],
+   "max_vif_before": 6.838294802785956,
+   "max_vif_after": 6.838294802785956
+  },
+  "long|0.9": {
+   "before": [
+    "vol_ratio_5_20",
+    "range_ratio",
+    "atr_ratio_chg",
+    "rv_12",
+    "atr_ratio",
+    "ma_align",
+    "vol_ma_ratio",
+    "rv_50",
+    "bb_width_20",
+    "vol_z_20",
+    "pos_in_range_100",
+    "ret_24",
+    "ma_slope_50",
+    "macd_signal",
+    "pos_in_range_50",
+    "rsi_28",
+    "ma_ratio_200",
+    "hour_cos",
+    "bb_pos_20"
+   ],
+   "after": [
+    "vol_ratio_5_20",
+    "range_ratio",
+    "atr_ratio_chg",
+    "rv_12",
+    "ma_align",
+    "vol_ma_ratio",
+    "rv_50",
+    "bb_width_20",
+    "vol_z_20",
+    "pos_in_range_100",
+    "ret_24",
+    "ma_slope_50",
+    "pos_in_range_50",
+    "ma_ratio_200",
+    "hour_cos",
+    "bb_pos_20"
+   ],
+   "dropped": [
+    {
+     "factor": "rsi_28",
+     "vif": 16.964159172932085,
+     "reason": "vif"
+    },
+    {
+     "factor": "atr_ratio",
+     "vif": 14.052740224730305,
+     "reason": "vif"
+    },
+    {
+     "factor": "macd_signal",
+     "vif": 11.734949201781802,
+     "reason": "vif"
+    }
+   ],
+   "max_vif_before": 16.964159172932085,
+   "max_vif_after": 6.838294802785956
+  },
+  "long|0.95": {
+   "before": [
+    "vol_ratio_5_20",
+    "range_ratio",
+    "atr_ratio_chg",
+    "rv_12",
+    "atr_ratio",
+    "parkinson_20",
+    "ma_align",
+    "vol_ma_ratio",
+    "rv_50",
+    "bb_width_20",
+    "vol_z_20",
+    "pos_in_range_100",
+    "ret_24",
+    "ma_slope_50",
+    "macd_signal",
+    "pos_in_range_50",
+    "rsi_28",
+    "lr_slope_50",
+    "ma_ratio_200",
+    "ma_slope_20",
+    "ma_ratio_100",
+    "ma_ratio_50",
+    "rsi_14",
+    "hour_cos",
+    "bb_pos_20"
+   ],
+   "after": [
+    "vol_ratio_5_20",
+    "range_ratio",
+    "atr_ratio_chg",
+    "rv_12",
+    "parkinson_20",
+    "ma_align",
+    "vol_ma_ratio",
+    "rv_50",
+    "bb_width_20",
+    "vol_z_20",
+    "pos_in_range_100",
+    "pos_in_range_50",
+    "lr_slope_50",
+    "ma_ratio_200",
+    "ma_slope_20",
+    "hour_cos",
+    "bb_pos_20"
+   ],
+   "dropped": [
+    {
+     "factor": "rsi_14",
+     "vif": 71.54720962993979,
+     "reason": "vif"
+    },
+    {
+     "factor": "ma_ratio_50",
+     "vif": 38.46539310261186,
+     "reason": "vif"
+    },
+    {
+     "factor": "ma_ratio_100",
+     "vif": 30.345390101453233,
+     "reason": "vif"
+    },
+    {
+     "factor": "atr_ratio",
+     "vif": 28.659405998438213,
+     "reason": "vif"
+    },
+    {
+     "factor": "macd_signal",
+     "vif": 26.10882201518514,
+     "reason": "vif"
+    },
+    {
+     "factor": "rsi_28",
+     "vif": 16.946128456249173,
+     "reason": "vif"
+    },
+    {
+     "factor": "ret_24",
+     "vif": 13.944474538101167,
+     "reason": "vif"
+    },
+    {
+     "factor": "ma_slope_50",
+     "vif": 10.091703697286697,
+     "reason": "vif"
+    }
+   ],
+   "max_vif_before": 71.54720962993979,
+   "max_vif_after": 9.686335636578569
+  },
+  "short|0.8": {
+   "before": [
+    "mom_accel",
+    "hour_sin",
+    "gap",
+    "close_pos_in_bar",
+    "ret_1",
+    "dow_cos",
+    "dow_sin",
+    "lower_shadow",
+    "consec_up",
+    "consec_dn"
+   ],
+   "after": [
+    "mom_accel",
+    "hour_sin",
+    "gap",
+    "close_pos_in_bar",
+    "ret_1",
+    "dow_cos",
+    "dow_sin",
+    "lower_shadow",
+    "consec_up",
+    "consec_dn"
+   ],
+   "dropped": [],
+   "max_vif_before": 3.2950285724368777,
+   "max_vif_after": 3.2950285724368777
+  },
+  "short|0.85": {
+   "before": [
+    "mom_accel",
+    "hour_sin",
+    "gap",
+    "close_pos_in_bar",
+    "ret_1",
+    "body_ratio",
+    "dow_cos",
+    "dow_sin",
+    "lower_shadow",
+    "consec_up",
+    "consec_dn"
+   ],
+   "after": [
+    "mom_accel",
+    "hour_sin",
+    "gap",
+    "close_pos_in_bar",
+    "ret_1",
+    "dow_cos",
+    "dow_sin",
+    "lower_shadow",
+    "consec_up",
+    "consec_dn"
+   ],
+   "dropped": [
+    {
+     "factor": "body_ratio",
+     "vif": 10.87742947654276,
+     "reason": "vif"
+    }
+   ],
+   "max_vif_before": 10.87742947654276,
+   "max_vif_after": 3.2950285724368777
+  },
+  "short|0.9": {
+   "before": [
+    "mom_accel",
+    "hour_sin",
+    "gap",
+    "ret_6",
+    "close_pos_in_bar",
+    "ret_1",
+    "body_ratio",
+    "dow_cos",
+    "dow_sin",
+    "lower_shadow",
+    "consec_up",
+    "consec_dn"
+   ],
+   "after": [
+    "mom_accel",
+    "hour_sin",
+    "gap",
+    "ret_6",
+    "close_pos_in_bar",
+    "ret_1",
+    "dow_cos",
+    "dow_sin",
+    "lower_shadow",
+    "consec_up",
+    "consec_dn"
+   ],
+   "dropped": [
+    {
+     "factor": "body_ratio",
+     "vif": 10.931873597754663,
+     "reason": "vif"
+    }
+   ],
+   "max_vif_before": 10.931873597754663,
+   "max_vif_after": 4.360649840421643
+  },
+  "short|0.95": {
+   "before": [
+    "mom_accel",
+    "hour_sin",
+    "gap",
+    "ret_6",
+    "close_pos_in_bar",
+    "ret_1",
+    "body_ratio",
+    "dow_cos",
+    "dow_sin",
+    "lower_shadow",
+    "consec_up",
+    "consec_dn"
+   ],
+   "after": [
+    "mom_accel",
+    "hour_sin",
+    "gap",
+    "ret_6",
+    "close_pos_in_bar",
+    "ret_1",
+    "dow_cos",
+    "dow_sin",
+    "lower_shadow",
+    "consec_up",
+    "consec_dn"
+   ],
+   "dropped": [
+    {
+     "factor": "body_ratio",
+     "vif": 10.931873597754663,
+     "reason": "vif"
+    }
+   ],
+   "max_vif_before": 10.931873597754663,
+   "max_vif_after": 4.360649840421643
+  }
+ },
+ "consistency": {
+  "n_fail": 0,
+  "checks": [
+   {
+    "check": "数据切分 70/15/15",
+    "pass": true,
+    "detail": "train 9189 / oof 1969 / ooc 1970"
+   },
+   {
+    "check": "三段严格时序不重叠",
+    "pass": true,
+    "detail": "train[0,9189) oof[9189,11158) ooc[11158,13128)"
+   },
+   {
+    "check": "选择只发生在 OOF(OOC 未被读取)",
+    "pass": true,
+    "detail": "选择段为 OOF[9189,11158); OOC[11158,13128) 全程未参与"
+   },
+   {
+    "check": "止盈/止损硬约束 tp > sl",
+    "pass": true,
+    "detail": "long tp=2.50>sl=2.00 | short tp=2.50>sl=1.00"
+   },
+   {
+    "check": "制度门控生效且与冻结评估一致",
+    "pass": true,
+    "detail": "long: rule=sma100, OOC 门控前信号 1382 -> 门控后 700, 冻结复核偏差 0; short: rule=none, OOC 门控前信号 1011 -> 门控后 1011, 冻结复核偏差 0"
+   },
+   {
+    "check": "VIF 迭代剪枝(冻结集 VIF<=10 且为去冗余子集)",
+    "pass": true,
+    "detail": "long: 剪枝前14->后14, 最大VIF 4.73->4.73, 子集=True; short: 剪枝前10->后10, 最大VIF 3.30->3.30, 子集=True"
+   },
+   {
+    "check": "阈值由 OOF 冻结, 非 OOC 自身分位",
+    "pass": true,
+    "detail": "long: 冻结(OOF) +0.002770 vs OOC自身分位 +0.002938; short: 冻结(OOF) +0.022256 vs OOC自身分位 +0.021373"
+   },
+   {
+    "check": "OOF 冻结评估与网格最优一致",
+    "pass": true,
+    "detail": "long: 网格 7.33%/夏普3.25 vs 复评 7.33%/夏普3.25; short: 网格 10.20%/夏普2.67 vs 复评 10.20%/夏普2.67"
+   },
+   {
+    "check": "成本口径 = 单边 5bp / 双边 10bp",
+    "pass": true,
+    "detail": "逐笔复核 1917 笔, 不一致 0 笔"
+   },
+   {
+    "check": "资金口径 1000 本金 / 单笔 100",
+    "pass": true,
+    "detail": "INIT_CAPITAL=1000 TRADE_NOTIONAL=100"
+   },
+   {
+    "check": "信号 t 收盘 -> t+1 开盘成交(无未来函数)",
+    "pass": true,
+    "detail": "全部 1917 笔成交价 == open[entry_idx], 不一致 0 笔"
+   },
+   {
+    "check": "制度掩码仅用过去信息(截断后取值不变)",
+    "pass": true,
+    "detail": "规则: sma100, sma200, sma200_slope"
+   },
+   {
+    "check": "多空独立: 因子集/执行参数/制度规则各自冻结",
+    "pass": true,
+    "detail": "long(sma100, 14因子, tp=2.50,sl=2.00) | short(none, 10因子, tp=2.50,sl=1.00)"
+   }
+  ]
+ }
+}

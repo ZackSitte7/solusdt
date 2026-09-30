@@ -174,7 +174,7 @@ def _exec_grid_oof(tp_gt_sl: bool = False) -> List[dict]:
 def optimize_full_on_oof(F: pd.DataFrame, y: pd.Series, factor_sets: Dict[float, List[str]],
                          side: str, ohlc: dict, atr: np.ndarray, times: np.ndarray,
                          train_slice: slice, oof_slice: slice,
-                         tp_gt_sl: bool = False,
+                         tp_gt_sl: bool = False, regime: np.ndarray = None,
                          verbose: bool = True) -> Tuple[dict, pd.DataFrame, pd.DataFrame]:
     """在 **OOF** 上做两阶段选优, 训练只用 train、选择只用 OOF。
 
@@ -183,6 +183,7 @@ def optimize_full_on_oof(F: pd.DataFrame, y: pd.Series, factor_sets: Dict[float,
     每个外层组合都用 train 段**重新筛因子并重新训练**, 避免"因子集"成为未优化的死参数。
 
     tp_gt_sl=True 时内层网格只保留 **止盈幅度 > 止损幅度** 的组合(v3 约束)。
+    regime: 可选制度门控(全序列 bool 数组), 与阈值信号取交集(v5)。
 
     factor_sets: {去冗余阈值: 该方向的因子列表}(由 factor_select 在 train 上产出)
     返回 (best, agg, raw); trained[(dedup, model_name)] 供冻结时取回模型。
@@ -205,7 +206,7 @@ def optimize_full_on_oof(F: pd.DataFrame, y: pd.Series, factor_sets: Dict[float,
                 r = evaluate_with_params(pred, ohlc, atr, times, side,
                                          oof_slice.start, oof_slice.stop,
                                          ec["thr_q"], ec["tp_mult"], ec["sl_mult"],
-                                         max_hold=ec["max_hold"])
+                                         max_hold=ec["max_hold"], regime=regime)
                 m = r["metrics"]
                 rows.append(dict(dedup=float(dedup), n_factors=len(facs), model=mc["name"],
                                  thr_q=float(ec["thr_q"]), tp_mult=float(ec["tp_mult"]),

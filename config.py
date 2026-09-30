@@ -221,3 +221,17 @@ V3_OUT_DIR = "v3"                # 产出目录 reports/v3
 V4_MAX_VIF = 10.0                # VIF 上限(经验阈值: >10 视为严重共线)
 V4_MIN_FACTORS = 5               # 剪枝后至少保留的因子数(安全下限, 避免剪成单因子)
 V4_OUT_DIR = "v4"                # 产出目录 reports/v4
+
+# ================================================================ v5: 制度门控(治理制度错配)
+# 入口脚本 run_backtest_v5.py。依据 v4 结论: OOC 亏损主因不是因子冗余, 而是 train(牛市)
+# 与 OOC(熊市)的制度错配。做法: 用**只用过去信息**的均线制度做开关, 只在顺势制度里开仓。
+#   规则集(预注册, 直接进入 OOF 选优):
+#     none         : 不门控(回落 v4 行为)
+#     sma100       : long 需 close>MA100; short 需 close<MA100
+#     sma200       : long 需 close>MA200; short 需 close<MA200
+#     sma200_slope : 在上者基础上再要求 MA200 本身朝该方向倾斜(过滤假突破)
+# 门控只作用于**信号 bar**, 成交仍在 t+1 开盘; 规则同样只在 OOF 上择优, OOC 仅观察。
+V5_REGIME_GRID = ("none", "sma100", "sma200", "sma200_slope")
+V5_REGIME_MA = {"sma100": 100, "sma200": 200, "sma200_slope": 200}
+V5_SLOPE_LOOKBACK = 12           # 均线倾斜的观察窗(根)
+V5_OUT_DIR = "v5"                # 产出目录 reports/v5

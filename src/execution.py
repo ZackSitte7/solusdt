@@ -132,11 +132,13 @@ def threshold_from_quantile(pred: np.ndarray, side: str, thr_q: float,
 
 
 def signal_from_threshold(pred: np.ndarray, side: str, thr_abs: float,
-                          start: int, end: int) -> np.ndarray:
+                          start: int, end: int, regime: np.ndarray = None) -> np.ndarray:
     """按**冻结的绝对阈值**生成信号。
 
     关键: OOC 评估必须传入由 OOF 冻结下来的 thr_abs, 而**不能**用 OOC 自身分布取分位,
     否则会用 OOC 的分布信息(等于偷看 OOC)。
+
+    regime: 可选, 全序列 bool 数组(制度门控); 传入时信号需**同时**满足阈值与制度条件。
     """
     sig = np.zeros(len(pred), dtype=bool)
     if not np.isfinite(thr_abs):
@@ -147,6 +149,8 @@ def signal_from_threshold(pred: np.ndarray, side: str, thr_abs: float,
         sig[start:end] = finite & (seg >= thr_abs)
     else:
         sig[start:end] = finite & (seg <= thr_abs)
+    if regime is not None:
+        sig &= np.asarray(regime, dtype=bool)
     return sig
 
 
@@ -161,11 +165,14 @@ def evaluate_with_threshold(pred: np.ndarray, ohlc: dict, atr: np.ndarray, times
                             side: str, start: int, end: int, thr_abs: float,
                             tp_mult: float, sl_mult: float,
                             notional: float = None, max_hold: int = None,
-                            trail_mult: float = 0.0) -> dict:
-    """统一评估入口(绝对阈值): 信号 -> 成交 -> 指标 + 权益曲线。所有调用方共用, 口径一致。"""
+                            trail_mult: float = 0.0, regime: np.ndarray = None) -> dict:
+    """统一评估入口(绝对阈值): 信号 -> 成交 -> 指标 + 权益曲线。所有调用方共用, 口径一致。
+
+    regime: 可选制度门控(全序列 bool 数组), 与阈值信号取交集。
+    """
     notional = C.TRADE_NOTIONAL if notional is None else notional
     max_hold = C.MAX_HOLD_BARS if max_hold is None else int(max_hold)
-    sig = signal_from_threshold(pred, side, thr_abs, start, end)
+    sig = signal_from_threshold(pred, side, thr_abs, start, end, regime=regime)
     trades = simulate_signals(sig, ohlc["open"], ohlc["high"], ohlc["low"], ohlc["close"],
                               atr, times, side, tp_mult, sl_mult,
                               max_hold, notional, trail_mult=trail_mult)
@@ -180,11 +187,11 @@ def evaluate_with_params(pred: np.ndarray, ohlc: dict, atr: np.ndarray, times: n
                          side: str, start: int, end: int, thr_q: float,
                          tp_mult: float, sl_mult: float,
                          notional: float = None, max_hold: int = None,
-                         trail_mult: float = 0.0) -> dict:
+                         trail_mult: float = 0.0, regime: np.ndarray = None) -> dict:
     """分位阈值版入口(先由 [start,end) 段预测算分位, 再评估)。"""
     thr = threshold_from_quantile(pred, side, thr_q, start, end)
     return evaluate_with_threshold(pred, ohlc, atr, times, side, start, end, thr,
-                                   tp_mult, sl_mult, notional, max_hold, trail_mult)
+                                   tp_mult, sl_mult, notional, max_hold, trail_mult, regime)
 
 
 def equity_from_trades(trades: List[Trade], n_bars: int) -> np.ndarray:
