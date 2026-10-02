@@ -1,19 +1,27 @@
+# ============================================================ .gitignore
+# 设计原则: **代码与文档入库, 可从脚本再生的大体量中间产物出库**;
+#          但报告类产物(metrics/report/图/成交明细)随仓库分发, 便于复现与对比。
+
 # ---- 环境 / 依赖 ----
 .venv/
 venv/
 env/
 node_modules/
-target/
 dist/
+build/
 
 # ---- Python ----
 __pycache__/
 *.py[cod]
 *.egg-info/
 .pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
 .ipynb_checkpoints/
 
-# ---- 数据 / 产物(默认不入库, 可用脚本重新生成) ----
+# ---- 数据 / 大体量产物(默认出库, 可由脚本重新生成) ----
 data/
 reports/
 *.parquet
@@ -28,17 +36,23 @@ reports/
 !data/solusdt_4h_clean.parquet
 !data/solusdt_4h_clean_okx.parquet
 
-# ---- 例外: 回测报告随仓库分发(见 run_backtest_okx.py / _v2.py / _v3.py) ----
+# ---- 例外: 回测报告随仓库分发(见 run_backtest_okx.py / _v2.py ... / _v10.py) ----
 !reports/
 !reports/**/*.md
 !reports/**/*.json
 !reports/**/*.csv
 !reports/**/*.png
 
-# ---- 排除: v8/v9 的"配置×子折"原始网格转储 ----
-# 每个文件 ~108MB, 超出 GitHub 单文件 100MB 硬上限(会被拒绝推送);
-# 且可由 run_backtest_v8.py / run_backtest_v9.py 重新生成, 故不入库。
+# ---- 出库: v8/v9 的"配置×子折"原始网格转储 ----
+# 单文件约 108MB, 超过 GitHub 单文件 100MiB 硬上限, 直接推送会被拒绝;
+# 且可由 run_backtest_v8.py / run_backtest_v9.py 重新生成, 故原文件不入库。
 reports/**/selection_folds_*.csv
+
+# ---- 入库: 上述大文件的分片 ----
+# 由 tools/shards.py 按行边界切成 partNN(每片 <=90MiB, 每片重复表头可独立读取),
+# 附 MANIFEST.json(逐片 sha256/行数)可校验与还原。还原: tools/shards.py merge
+!reports/**/shards/
+!reports/**/shards/**
 
 # ---- 敏感信息: 一律不得入库 ----
 .env
@@ -52,6 +66,10 @@ config.local.*
 *.pem
 *.p12
 
-# ---- 系统 ----
+# ---- 系统 / 编辑器 ----
 .DS_Store
+Thumbs.db
 *.log
+*.swp
+.idea/
+.vscode/

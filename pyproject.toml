@@ -1,0 +1,24 @@
+# ============================================================ 工程配置
+# 本仓库**不作为可安装包分发**(入口是根目录的 run_backtest_*.py 脚本),
+# 这里只放工具链配置: ruff(静态检查) + pytest(测试发现)。
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+target-version = "py313"
+line-length = 120
+extend-exclude = [".venv", "data", "reports"]
+
+[tool.ruff.lint]
+# 只开"能抓真问题"的保守规则集(E/W 代码风格告警 + F pyflakes)。
+# 未启用 UP/SIM/C4/RUF 等现代化规则: 本仓库一贯使用 % 格式化、typing.Dict/List
+# 等风格, 全量现代化会产生上千条告警且需改动已冻结的历史版本脚本, 性价比低。
+select = ["E", "F", "W"]
+ignore = [
+    "E501",  # 行长: 中文注释与参数表注释经常超行, 不强制换行
+    "E702",  # 分号多语句: 少数紧凑赋值沿用既有风格
+    "E741",  # 变量名 l: 表示 OHLC 里的 low, 沿用既有约定
+    "F841",  # 未使用局部变量: 少量调试残留, 不阻塞提交
+]

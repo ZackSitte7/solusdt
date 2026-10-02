@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from itertools import product
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -385,7 +385,8 @@ def optimize_v8_on_oof(F: pd.DataFrame, y: pd.Series,
                        regimes: Dict[str, np.ndarray],
                        thr_grid=None, hold_grid=None, trail_grid=None, sl_grid=None,
                        tp_gt_sl: bool = True, n_folds=None,
-                       verbose: bool = True) -> Tuple[dict, pd.DataFrame, pd.DataFrame]:
+                       verbose: bool = True,
+                       out_models: dict = None) -> Tuple[dict, pd.DataFrame, pd.DataFrame]:
     """v8 主优化: 网格/训练与 `optimize_v6_on_oof` 完全相同, **只改选优纪律**。
 
     相对 v6/v7 的"整段 OOF 取最大 total_return":
@@ -416,6 +417,8 @@ def optimize_v8_on_oof(F: pd.DataFrame, y: pd.Series,
             tm = models.train_side(F.iloc[ts:te], y.iloc[ts:te], facs, side,
                                    params=models.resolve_params(mc), verbose=False)
             trained[((pool, dedup), mc["name"])] = tm
+            if out_models is not None:          # v10: 供"重建候选逐折权益"复用, 免去重复训练
+                out_models[(pool, float(dedup), mc["name"])] = (tm, tm.predict(F))
             pred = tm.predict(F)                       # 全序列预测, 只在 OOF 子折上评估
             for rule, mask in regimes.items():
                 for ec in grid:
@@ -568,4 +571,112 @@ def joint_select_v9(long_raw: pd.DataFrame, short_raw: pd.DataFrame, k_cfg: int,
                 robust_combined=float(robust[i, j]), mean_combined=float(mean[i, j]),
                 worst_combined=float(worst[i, j]), std_combined=float(std[i, j]),
                 fold_returns=[float(v) for v in rc[i, j]])
+    return best, pairs, pl, ps
+
+
+# ================================================ v10: 收益+夏普 双目标的联合选优
+def _sharpe_rows(E: np.ndarray) -> np.ndarray:
+    """批量算年化夏普, 与 `src.metrics.sharpe` 同口径(bar 收益 = diff/prev, ddof=1, 4h 年化)。
+
+    metrics.sharpe 逐条 Python 调用在上万条曲线时太慢, 这里对 (m, T) 矩阵按行向量化。
+    """
+    if E.ndim == 1:
+        E = E[None, :]
+    if E.shape[1] < 3:
+        return np.zeros(E.shape[0])
+    prev = E[:, :-1]
+    r = np.diff(E, axis=1) / np.where(prev == 0, np.nan, prev)
+    with np.errstate(invalid="ignore"):
+        mean = np.nanmean(r, axis=1)
+        std = np.nanstd(r, axis=1, ddof=1)
+    out = np.where(std > 0, mean / std * np.sqrt(365.0 * 6.0), 0.0)
+    return np.nan_to_num(out, nan=0.0, posinf=0.0, neginf=0.0)
+
+
+def _candidate_fold_equity(pool: pd.DataFrame, pred_map: dict, side: str, ohlc: dict,
+                           atr: np.ndarray, times: np.ndarray, folds, masks: dict) -> List[np.ndarray]:
+    """候选池内每个配置在**每个子折**上的 bar 级权益曲线 -> [ (n_cand, 折长), ... ]。
+
+    评估口径与阶段1完全一致(分位阈值按子折自身预测计算), 因此重建的逐折收益应与原始长表一致。
+    """
+    out: List[np.ndarray] = []
+    for (flo, fhi) in folds:
+        rows = []
+        for _, c in pool.iterrows():
+            pred = pred_map[(c["pool"], float(c["dedup"]), c["model"])][1]
+            r = evaluate_with_params(pred, ohlc, atr, times, side, flo, fhi,
+                                     float(c["thr_q"]), float(c["tp_mult"]), float(c["sl_mult"]),
+                                     max_hold=int(c["max_hold"]),
+                                     trail_mult=float(c["trail_mult"]),
+                                     regime=masks[c["regime"]][side])
+            rows.append(r["equity"])
+        out.append(np.vstack(rows))
+    return out
+
+
+def joint_select_v10(long_raw: pd.DataFrame, short_raw: pd.DataFrame,
+                     pred_map_long: dict, pred_map_short: dict,
+                     ohlc: dict, atr: np.ndarray, times: np.ndarray, folds, masks: dict,
+                     k_cfg: int, robust_k: float = None, top_report: int = 30):
+    """v10 联合选优: 在 v9 的"合并稳健收益"之上**加入真实 bar 级合并夏普**。
+
+    用户口径: **收益优先, 夏普次之**; 两者都按跨折稳健(均值 - k×std)。
+      主目标 = 合并稳健收益 = mean(rc) - k×std(rc),  rc = 逐折合并收益(两侧收益相加)
+      次目标 = 合并稳健夏普 = mean(S)  - k×std(S),   S  = 逐折**合并组合**夏普
+      三目标 = 最差折合并收益(maximin)
+    合并夏普按真实口径重建: eq_c = eq_long + eq_short - INIT_CAPITAL, 再按 bar 收益年化 ——
+    **不是**把两侧夏普相加(两侧交易独立, 组合夏普与单侧夏普不可线性合成)。
+    选择只用 OOF 子折; OOC 不参与。
+
+    返回 (best, pairs, pool_long, pool_short)。
+    """
+    robust_k = C.V8_ROBUST_K if robust_k is None else robust_k
+    pl = candidate_pool_v9(long_raw, k_cfg, robust_k)
+    ps = candidate_pool_v9(short_raw, k_cfg, robust_k)
+    RL = _fold_return_matrix(long_raw, pl)          # (nL, F)
+    RS = _fold_return_matrix(short_raw, ps)         # (nS, F)
+    rc = RL[:, None, :] + RS[None, :, :]            # (nL, nS, F) 合并逐折收益
+    ret_mean = np.nanmean(rc, axis=2)
+    ret_std = np.nanstd(rc, axis=2, ddof=1)
+    worst_ret = np.nanmin(rc, axis=2)
+    robust_ret = ret_mean - robust_k * ret_std
+
+    eqL = _candidate_fold_equity(pl, pred_map_long, "long", ohlc, atr, times, folds, masks)
+    eqS = _candidate_fold_equity(ps, pred_map_short, "short", ohlc, atr, times, folds, masks)
+    nL, nS, F = len(pl), len(ps), len(folds)
+    sh = np.zeros((nL, nS, F))
+    for f in range(F):
+        base = eqS[f]                                     # (nS, T_f)
+        for i in range(nL):
+            sh[i, :, f] = _sharpe_rows(base + (eqL[f][i] - C.INIT_CAPITAL))
+    sh_mean = np.nanmean(sh, axis=2)
+    sh_std = np.nanstd(sh, axis=2, ddof=1)
+    robust_sharpe = sh_mean - robust_k * sh_std
+
+    order = np.lexsort((-worst_ret.ravel(), -robust_sharpe.ravel(), -robust_ret.ravel()))
+    li, si = np.unravel_index(order, robust_ret.shape)
+
+    keys = list(_V8_CONFIG_KEYS)
+    pairs = pd.DataFrame({**{("long_" + k): pl[k].to_numpy()[li] for k in keys},
+                          **{("short_" + k): ps[k].to_numpy()[si] for k in keys},
+                          "robust_combined": robust_ret[li, si],
+                          "sharpe_combined": robust_sharpe[li, si],
+                          "worst_combined": worst_ret[li, si],
+                          "mean_combined": ret_mean[li, si],
+                          "std_combined": ret_std[li, si],
+                          "sharpe_mean": sh_mean[li, si],
+                          "sharpe_std": sh_std[li, si]})
+    for fi in range(F):
+        pairs["fold%d_ret" % (fi + 1)] = rc[li, si, fi]
+        pairs["fold%d_sharpe" % (fi + 1)] = sh[li, si, fi]
+    pairs = pairs.head(int(top_report)).reset_index(drop=True)
+
+    i, j = int(li[0]), int(si[0])
+    best = dict(long=pl.iloc[i].to_dict(), short=ps.iloc[j].to_dict(),
+                robust_combined=float(robust_ret[i, j]), sharpe_combined=float(robust_sharpe[i, j]),
+                mean_combined=float(ret_mean[i, j]), std_combined=float(ret_std[i, j]),
+                worst_combined=float(worst_ret[i, j]), sharpe_mean=float(sh_mean[i, j]),
+                sharpe_std=float(sh_std[i, j]),
+                fold_returns=[float(v) for v in rc[i, j]],
+                fold_sharpes=[float(v) for v in sh[i, j]])
     return best, pairs, pl, ps

@@ -29,7 +29,7 @@ sys.path.insert(0, str(BASE_DIR))
 import config as C                                                    # noqa: E402
 from src import data_clean, execution, factor_select                 # noqa: E402
 from src import factors as F_lib                                     # noqa: E402
-from src import models, optimize                                     # noqa: E402
+from src import optimize                                     # noqa: E402
 from src.cv import time_split                                        # noqa: E402
 
 OUT = C.REPORT_DIR / C.V4_OUT_DIR

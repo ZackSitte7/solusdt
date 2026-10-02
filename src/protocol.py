@@ -21,7 +21,7 @@
 from __future__ import annotations
 
 from itertools import product
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 import numpy as np
 import pandas as pd

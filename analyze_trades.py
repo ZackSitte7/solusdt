@@ -23,7 +23,6 @@ from src import data_clean, execution                     # noqa: E402
 from src import factors as F_lib                          # noqa: E402
 from src import models                                    # noqa: E402
 from src.cv import time_split                             # noqa: E402
-from src.metrics import summarize                         # noqa: E402
 
 SEGS = ("train", "oof", "ooc")
 NOTIONAL = C.TRADE_NOTIONAL

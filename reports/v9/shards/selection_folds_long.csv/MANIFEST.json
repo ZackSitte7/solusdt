@@ -1,0 +1,23 @@
+{
+  "source": "reports/v9/selection_folds_long.csv",
+  "source_bytes": 113449562,
+  "source_sha256": "ddcf973b164579b9931312208acaa78b1fcb8b7dd8d251da1a713fbdc628518a",
+  "source_rows": 580608,
+  "header": "pool,regime,dedup,n_factors,model,fold,fold_lo,fold_hi,thr_q,tp_mult,sl_mult,max_hold,trail_mult,n,sharpe,total_return,calmar,max_drawdown,win_rate,payoff,tp_rate",
+  "max_bytes": 94371840,
+  "n_parts": 2,
+  "parts": [
+    {
+      "part": "part00",
+      "rows": 483758,
+      "bytes": 94371679,
+      "sha256": "f66f1dcd2c6ffd5cf65823e931cc283a8003411739881c9f8fd68c6b5fa9c9f7"
+    },
+    {
+      "part": "part01",
+      "rows": 96850,
+      "bytes": 19078046,
+      "sha256": "a659ef9fa51508c55db14bf92061f12959597e804765542dcfe1a40a9aac098f"
+    }
+  ]
+}

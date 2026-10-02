@@ -1,0 +1,21 @@
+# 精确锁定的运行环境 —— 与仓库 reports/ 下已入库产物的生成环境一致。
+# 安装: pip install -r requirements.lock.txt
+#
+# 环境记录: Python 3.14.7 / Linux
+# 若只用 requirements.txt(松散约束)复现, 结果可能与 reports/ 有末位差异。
+
+lightgbm==4.7.0
+matplotlib==3.11.2
+numpy==2.5.3
+pandas==3.0.6
+pyarrow==25.0.1
+scikit-learn==1.9.1
+scipy==1.18.1
+
+# ---- 开发 / 校验 ----
+pytest==9.1.1
+ruff==0.16.0
+
+# ---- 仅抓取数据时需要(src/data_fetch.py) ----
+# 回测与报告复现不需要 requests: 原始数据已随仓库分发(data/), 本环境亦未安装。
+# requests>=2.31
