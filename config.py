@@ -350,3 +350,133 @@ V10_OUT_DIR = "v10"             # 产出目录 reports/v10
 # 若 reports/<该值>/selection_folds_{long,short}.csv 已存在则直接复用(省去约 18 分钟重算),
 # 否则脚本自行计算并落盘。设为空字符串 "" 则强制重算。
 V10_REUSE_GRID_FROM = "v9"
+
+# ================================================================ v11: 强化选择器(把 OOF 收益+夏普再推高)
+# 入口脚本 run_backtest_v11.py。**数据窗口(DATA_START=2021-10-01 起)、因子池、训练、
+# 执行网格、成本、资金、合并口径、排序目标、折数都与 v10 逐位相同**, 只强化"怎么选"这条纪律:
+# v10 的候选池**只按单一目标截断**: 每侧仅按"该侧稳健收益"取前 200, 存在"夏普更高、收益略低"
+# 的解在**进入联合配对之前**就被丢掉的风险(注意: 实测在 v9 的 3 折长表上, 前 200 内已含
+# 该侧最高稳健夏普, 故这里说的是**风险**而非既成事实)。
+# v11 只改一处 —— 候选池改**双目标保留**:
+#   1. V11_CAND_PER_SIDE = 500: 候选池扩大(执行网格不动 -> 不新增假设空间, 只少丢好解);
+#   2. 入池优先级 = min(稳健收益排名, 稳健夏普排名), 并强制并入 (稳健收益, 稳健夏普) 的
+#      **Pareto 前沿**(非支配解)。
+# 关键性质: 折数与 v10 **保持 3 折不变**, 目标取值尺度逐位相同 -> v11 的候选池**严格包含**
+# v10 的池(v11 ⊇ v10), 于是"选出的配对在稳健收益这一主目标上不会比 v10 差"是选择集上的硬保证。
+# (教训: 曾把折数 3 改 5, 会改变目标本身尺度、使该包含性失效, 反而选出更差的配对 —— 已回退。)
+# 排序目标不变: 主 = 合并稳健收益, 次 = 合并稳健夏普(真实 bar 级), 三 = 最差折合并收益;
+# 选择只发生在 OOF 子折, OOC 全程只观察。
+V11_N_FOLDS = 3                 # OOF 内部连续子折数(**与 v10 一致**, 保证候选池包含 v10 池)
+V11_CAND_PER_SIDE = 500         # 每侧候选池规模(v10 为 200)
+V11_OUT_DIR = "v11"             # 产出目录 reports/v11
+# 折数与 v9/v10 相同 -> 阶段1 长表(配置×子折)可直接复用 v9 的网格, 秒级完成。
+V11_REUSE_GRID_FROM = "v9"
+
+# ================================================================ v12: 直接以真实 OOF 收益+夏普为排序目标
+# 入口脚本 run_backtest_v12.py。v11 的实测结论: "逐折稳健收益"这一目标与**真实 OOF 段收益脱钩** ——
+# v11(3 折)的折稳健收益略高于 v10, 但真实 OOF 段收益反而从 8.90% 降到 4.79%。即:
+# 在 OOF 子折上做"均值 - K×标准差"的稳健排序, 并不能可靠地抬升最终要看的 OOF 段数字。
+# 用户明确选择: **直接以真实 OOF 段的合并收益与夏普为排序目标**(仍在 OOF 内选择, OOC 全程不碰)。
+# v12 的排序目标(字典序):
+#   主 = 真实 OOF 段**合并收益**(两侧冻结阈值下逐 bar 重建的真实值, 非折均值)
+#   次 = 真实 OOF 段**合并夏普**(同上, bar 级)
+#   三 = 最差折合并收益(maximin, 仍是 OOF 内子折, 作为"跨折不塌"的兜底)
+# 候选池沿用 v11 的双目标保留 + Pareto 前沿(每侧 V12_CAND_PER_SIDE 个), 折数 3 与 v10 一致。
+# 口径提醒: 选出来的就是"在 OOF 段上收益/夏普最高的那一对", 对 OOF 的选择压力比 v10/v11 更大;
+# OOC 仍**只观察**, 不参与任何一步。冻结阈值仍按**整段 OOF 分位**计算(与 v6~v11 同口径)。
+V12_N_FOLDS = 3                 # 与 v10/v11 一致的 OOF 子折数(仅用于"最差折"兜底项)
+V12_CAND_PER_SIDE = 500         # 每侧候选池规模(沿用 v11 的双目标 + Pareto 池)
+V12_OUT_DIR = "v12"             # 产出目录 reports/v12
+V12_REUSE_GRID_FROM = "v9"      # 阶段1 长表与 v9 结构一致, 直接复用
+
+# ================================================================ v13: 在 v5 口径上优化 OOF 收益与夏普
+# 入口脚本 run_backtest_v13.py。基线是 **v5**(制度门控 + VIF 迭代剪枝 + OOF 选优 +
+# ATR 止盈止损且 tp>sl; 因子库/执行网格/成本/资金/切分比例与 v5 完全一致), 只改两处:
+#   1. **数据窗口对齐 DATA_START=2021-10-01** —— v5 当时的 load_clean() 未做此对齐
+#      (起点对齐是 v6 才引入的), 因此 v13 与 v5 的**数据窗口不同**, 这是用户明确要求的口径变化。
+#   2. **选择规则改为"收益锚 + 夏普择优"** —— v5 的规则是 (收益, 夏普) 严格字典序, 夏普只在
+#      收益完全相等时才起作用, 实际上等于"只看收益"。v13 先取 OOF 收益最高的配置为**收益锚**,
+#      再在「OOF 收益 >= 锚收益 - V13_RET_DROP」的**有界让步带**内取 OOF 夏普最高者:
+#          V13_RET_DROP = 0 时逐位退化为 v5 的字典序;
+#          V13_RET_DROP > 0 时用**上限明确**的少量收益让步换更高夏普 -> **同时**优化收益与夏普。
+# 约束: 让步带用**绝对值**而非比例 —— 收益可能为负, 按比例(×0.98)会给出错误方向的门槛。
+# 选择仍**只在 OOF**(真实 OOF 段, 与 v5 同口径, 不用子折); OOC 全程只观察。
+# 取值依据(实测): 各制度规则的最优 OOF 收益彼此相差 1~2 个百分点。0.5pp 的让步带**够不到**
+# 其他制度规则, 会让本规则逐位退化为 v5 的"只看收益"; 1.5pp 才让 long 侧真正做一次取舍
+# (收益 +7.32%/夏普 2.73  ->  +6.59%/夏普 3.72, 让出 0.73pp 换 +0.99 夏普), short 侧不变。
+V13_RET_DROP = 0.015            # 允许让出的 OOF 收益上限(绝对值, 1.5 个百分点)
+V13_OUT_DIR = "v13"             # 产出目录 reports/v13
+
+# ---- v13 多头专用扩展(只作用于 long; short 逐位不变) ----
+# 依据: v13 的 long 帕累托前沿 6 个点**全部贴在网格边界上** —— max_hold 5/6 顶到上界 24、
+# sl 3/6 顶到 2.5、tp 2/6 顶到 4.0、dedup 2/6 顶到 0.95, 而 thr_q 6/6 贴在下界 0.4。
+# 是网格边界而不是数据在决定 long 的最优解, 且"当前点已是当前空间内的帕累托最优"(支配检验 0 个)。
+# 因此 v13 把 long 的这几条轴整体让开, 并把模型层与因子层也一并专属化, 由 OOF 自己重选:
+#   1. 执行网格外扩(下/上界各让开一档);
+#   2. 模型层候选 3 -> 5(补"更深更强正则"与"更慢更平滑"两个方向);
+#   3. 因子层新增 7 个**多头专用因子**(上涨结构走强/突破/相对超买/跳空高开/上涨效率),
+#      并在 short 侧显式排除, 保证空头口径不变。
+V13_LONG_DEDUP_GRID = (0.80, 0.85, 0.90, 0.95, 0.97)
+V13_LONG_THR_GRID = (0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8)
+V13_LONG_TP_GRID = (1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0)
+V13_LONG_SL_GRID = (0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0)
+V13_LONG_HOLD_GRID = (6, 12, 24, 36, 48)
+V13_LONG_FACTORS = ("higher_high_20", "higher_low_20", "bull_persist", "break_res_20",
+                    "rsi_bull_z_50", "gap_up_20", "up_eff_20")
+# 模型层候选(多头)。前 3 个与 src/models.py 的 MODEL_GRID 逐位相同(便于对照), 后 2 个为新增:
+#   deep_reg: 更深(127 叶) + 更强 L1/L2 正则 + 更大叶最小样本  -> 抓更复杂的上涨结构但不过拟合
+#   smooth  : 学习率 0.01 + 200 最小叶样本 + 强 L2          -> 更慢更平滑的拟合
+V13_LONG_MODEL_GRID = (
+    dict(name="base", learning_rate=0.03, num_leaves=31, feature_fraction=0.7,
+         min_child_samples=60, lambda_l2=1.0),
+    dict(name="shallow", learning_rate=0.03, num_leaves=15, feature_fraction=0.6,
+         min_child_samples=100, lambda_l2=5.0),
+    dict(name="deep_slow", learning_rate=0.015, num_leaves=63, feature_fraction=0.5,
+         min_child_samples=80, lambda_l2=10.0),
+    dict(name="deep_reg", learning_rate=0.015, num_leaves=127, feature_fraction=0.4,
+         min_child_samples=150, lambda_l1=1.0, lambda_l2=20.0),
+    dict(name="smooth", learning_rate=0.01, num_leaves=31, feature_fraction=0.5,
+         min_child_samples=200, lambda_l2=15.0),
+)
+
+# ================================================================ v14: long 趋势因子 + 模型层/执行层再优化
+# 入口脚本 run_backtest_v14.py。基线 = v13(其 long 多头专属扩展版), 用户要求:
+#   1. **为 long 补趋势类因子** —— 在因子库已有的趋势因子之外, 补 5 个**新的趋势维度**:
+#      趋势质量(LR-R² × 斜率符号)、Kaufman 效率比、多周期斜率同向度、趋势加速度、ADX 斜率;
+#   2. **优化 long 模型** + **优化模型层与执行层** —— 模型候选与执行网格继续外扩, 由 OOF 重选;
+#   3. 目标仍是 **long 的 OOF 收益率与夏普**(收益锚 + 夏普择优); **OOC 仍只观察**; short 逐位不变。
+# 依据: v13 的 long 最优点又贴在网格边界(hold 48/48、sl 3.0/3.0、dedup 0.97/0.97),
+#       仍是"空间"而非"数据"在决定 long 的解 -> v14 把这几条轴再让开一档, 并给趋势因子更大发挥空间。
+V14_LONG_TREND_FACTORS = (
+    "eff_ratio_20", "eff_ratio_50",     # Kaufman 效率比: 净移动/路径长度, 趋势 vs 震荡
+    "trend_qual_20", "trend_qual_50",   # 线性回归 R² × 斜率符号 = 有向趋势质量
+    "mtf_trend_align",                  # 多周期(20/50/100 均线斜率)同向度 -1~1
+    "ma_slope_accel",                   # 趋势加速度(短均线斜率的增量)
+    "adx_slope_14",                     # ADX 斜率(趋势强度增强/衰减)
+)
+V14_LONG_DEDUP_GRID = (0.80, 0.85, 0.90, 0.95, 0.97, 0.99)
+V14_LONG_THR_GRID = (0.3, 0.4, 0.5, 0.6, 0.7, 0.8)
+V14_LONG_TP_GRID = (1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0)
+V14_LONG_SL_GRID = (0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0)
+V14_LONG_HOLD_GRID = (6, 12, 24, 36, 48, 72)
+# 模型层候选(多头)7 个: 前 5 个与 v13 逐位相同(便于对照), 后 2 个为 v14 新增:
+#   deep_reg2: 更深(255 叶) + 更强 L1/L2 + 更大叶最小样本 -> 更大容量但强正则约束
+#   mid_reg  : 中等深度(95 叶) + 中等正则                    -> 介于 deep_slow 与 deep_reg 之间
+V14_LONG_MODEL_GRID = (
+    dict(name="base", learning_rate=0.03, num_leaves=31, feature_fraction=0.7,
+         min_child_samples=60, lambda_l2=1.0),
+    dict(name="shallow", learning_rate=0.03, num_leaves=15, feature_fraction=0.6,
+         min_child_samples=100, lambda_l2=5.0),
+    dict(name="deep_slow", learning_rate=0.015, num_leaves=63, feature_fraction=0.5,
+         min_child_samples=80, lambda_l2=10.0),
+    dict(name="deep_reg", learning_rate=0.015, num_leaves=127, feature_fraction=0.4,
+         min_child_samples=150, lambda_l1=1.0, lambda_l2=20.0),
+    dict(name="smooth", learning_rate=0.01, num_leaves=31, feature_fraction=0.5,
+         min_child_samples=200, lambda_l2=15.0),
+    dict(name="deep_reg2", learning_rate=0.01, num_leaves=255, feature_fraction=0.3,
+         min_child_samples=300, lambda_l1=2.0, lambda_l2=30.0),
+    dict(name="mid_reg", learning_rate=0.02, num_leaves=95, feature_fraction=0.45,
+         min_child_samples=120, lambda_l1=0.5, lambda_l2=12.0),
+)
+V14_RET_DROP = 0.015            # 同 v13: 允许让出的 OOF 收益上限(绝对值, 1.5 个百分点)
+V14_OUT_DIR = "v14"             # 产出目录 reports/v14

@@ -5,7 +5,7 @@ PY    := python3
 
 .DEFAULT_GOAL := help
 .PHONY: help install test lint smoke compare shards-verify shards-merge \
-        v6 v7 v8 v9 v10 clean
+        v6 v7 v8 v9 v10 v11 clean
 
 help:  ## 列出所有可用目标
 	@grep -hE '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -48,6 +48,9 @@ v9:  ## 运行 v9(long+short 共同优化合并总收益, 需先 make v6 v8)
 
 v10:  ## 运行 v10(OOF 收益+夏普双目标, 复用 v9 网格约 2 分钟)
 	$(PY) run_backtest_v10.py
+
+v11:  ## 运行 v11(强化选择器: 5 折 + 双目标候选池 + Pareto; 需重算阶段1 网格)
+	$(PY) run_backtest_v11.py
 
 # ---------------------------------------------------------------- 清理
 clean:  ## 清理 Python 缓存

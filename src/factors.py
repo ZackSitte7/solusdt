@@ -65,6 +65,24 @@ def _rolling_corr(a: pd.Series, b: pd.Series, n: int) -> pd.Series:
                      a.rolling(n, min_periods=n).std() * b.rolling(n, min_periods=n).std())
 
 
+def _rolling_r2(s: pd.Series, n: int) -> pd.Series:
+    """滚动线性拟合决定系数 R² —— 价格对时间做一元回归的 R²(0~1)。
+
+    衡量"这段走势有多像一条直线"(趋势质量), 与斜率大小无关。v14 趋势类因子。
+    """
+    x = np.arange(n, dtype=float)
+    xm = x.mean()
+    sxx = float(((x - xm) ** 2).sum())
+
+    def _fn(a):
+        ym = a.mean()
+        sxy = float(np.dot(a - ym, x - xm))
+        sst = float(((a - ym) ** 2).sum())
+        return (sxy * sxy) / (sxx * sst) if sst > 0 else np.nan
+
+    return s.rolling(n, min_periods=n).apply(_fn, raw=True)
+
+
 def _adx(high: pd.Series, low: pd.Series, close: pd.Series, n: int) -> pd.Series:
     """ADX(n) —— 经典趋势强度指标(需求14 趋势类因子)。"""
     up, dn = high.diff(), -low.diff()
@@ -317,6 +335,40 @@ def build_factors(df: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
     f["rsi_bear_z_50"] = _safe_div(f["rsi_14"] - f["rsi_14"].rolling(50, min_periods=50).mean(),
                                    f["rsi_14"].rolling(50, min_periods=50).std())
     f["gap_down_20"] = ((o < c.shift(1)).astype(float)).rolling(20, min_periods=20).mean()
+
+    # ================================================================ v13: 多头专用因子
+    # v7 只给空头补了"下跌结构"专用因子, 多头一直没有对称的处理。v13 对 long 做同样的专属化:
+    # 上涨的结构走强(高点/低点同时抬高)、突破阻力、相对自身历史的超买、跳空高开、上涨效率。
+    # 这些对空头逻辑无意义, 故在 v13 中**仅进入 long 的候选池**(short 侧显式排除)。
+    f["higher_high_20"] = (h > h.shift(1)).rolling(20, min_periods=20).mean()
+    f["higher_low_20"] = (l > l.shift(1)).rolling(20, min_periods=20).mean()
+    f["bull_persist"] = f["higher_high_20"] * f["higher_low_20"]     # 结构持续走强
+    f["break_res_20"] = _safe_div(c, h.rolling(20, min_periods=20).max()) - 1.0  # 相对 20 根新高
+    f["rsi_bull_z_50"] = _safe_div(f["rsi_14"] - f["rsi_14"].rolling(50, min_periods=50).mean(),
+                                   f["rsi_14"].rolling(50, min_periods=50).std())
+    f["gap_up_20"] = ((o > c.shift(1)).astype(float)).rolling(20, min_periods=20).mean()
+    f["up_eff_20"] = _safe_div(up.rolling(20, min_periods=20).sum(),
+                               _safe_div(h - l, c).rolling(20, min_periods=20).sum())
+
+    # ================================================================ v14: 趋势类因子(long 专属)
+    # 因子库里已有 adx/aroon/vortex/keltner/donchian/lr_slope/trend_consistency 等趋势因子, v14 只补
+    # **尚未覆盖的 5 个趋势维度**, 且都做成"上涨为正"的有向形式, 便于 long 直接使用(short 侧显式排除):
+    #   1) 趋势质量: 价格像不像一条直线(R²) × 斜率符号 —— 区分"真趋势"与"宽幅震荡";
+    #   2) Kaufman 效率比: 净移动 / 路径长度 —— 同样区分趋势 vs 震荡, 但对噪声更稳健;
+    #   3) 多周期同向度: 20/50/100 均线斜率方向是否一致 —— 捕捉大级别趋势共振;
+    #   4) 趋势加速度: 短均线斜率的增量 —— 趋势是在走强还是走弱;
+    #   5) ADX 斜率: 趋势强度指标的自身变化 —— ADX 向上=趋势正在增强。
+    for n in (20, 50):
+        r2 = _rolling_r2(c, n)
+        f["trend_qual_%d" % n] = r2 * np.sign(f["lr_slope_%d" % n])   # 有向趋势质量
+        net = (c - c.shift(n)).abs()
+        path = c.diff().abs().rolling(n, min_periods=n).sum()
+        f["eff_ratio_%d" % n] = _safe_div(net, path) * np.sign(c - c.shift(n))  # 有向效率比
+    f["mtf_trend_align"] = (np.sign(f["ma_slope_20"]) + np.sign(f["ma_slope_50"])
+                            + np.sign(f["ma_slope_100"])) / 3.0
+    _sl20 = _safe_div(_sma(c, 20), _sma(c, 20).shift(5)) - 1.0
+    f["ma_slope_accel"] = _sl20 - (_safe_div(_sma(c, 20).shift(5), _sma(c, 20).shift(10)) - 1.0)
+    f["adx_slope_14"] = f["adx_14"] - f["adx_14"].shift(5)
 
     F = pd.DataFrame(f, index=d.index)
     F = F.replace([np.inf, -np.inf], np.nan)
