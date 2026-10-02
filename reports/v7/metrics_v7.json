@@ -1,0 +1,1172 @@
+{
+ "config": {
+  "SYMBOL": "SOLUSDT",
+  "INTERVAL": "4h",
+  "SOURCE": "okx",
+  "DATA_START": "2021-10-01",
+  "HORIZON": 3,
+  "SELECT_ON": "oof",
+  "OPTIMIZED_SIDES": [
+   "short"
+  ],
+  "LONG_INHERITED_FROM": "v6",
+  "V7_SL_GRID": [
+   0.35,
+   0.5,
+   0.75,
+   1.0,
+   1.5,
+   2.0,
+   2.5
+  ],
+  "V7_REGIME_GRID": [
+   "none",
+   "sma100",
+   "sma200_slope",
+   "atr_pct",
+   "sma_align",
+   "ema_bear",
+   "breakdown_20",
+   "bear_vol"
+  ],
+  "V6_DEDUP_GRID": [
+   0.8,
+   0.85,
+   0.9
+  ],
+  "V6_THR_GRID": [
+   0.4,
+   0.5,
+   0.6,
+   0.7,
+   0.8,
+   0.85,
+   0.9
+  ],
+  "V6_HOLD_GRID": [
+   12,
+   24
+  ],
+  "V6_TRAIL_GRID": [
+   0.0,
+   1.5,
+   2.5
+  ],
+  "V4_MAX_VIF": 10.0,
+  "OBJECTIVE_PRIMARY": "total_return",
+  "OBJECTIVE_SECONDARY": "sharpe",
+  "FEE_RATE": 0.0005,
+  "SLIP_RATE": 0.0,
+  "INIT_CAPITAL": 1000.0,
+  "TRADE_NOTIONAL": 100.0
+ },
+ "sides": {
+  "long": {
+   "pool": "expanded",
+   "model_name": "base",
+   "factors": [
+    "shooting_20",
+    "ret_skew_20",
+    "rv_6",
+    "atr_z_20",
+    "up_vol_20",
+    "doji_20",
+    "vol_ratio_5_20",
+    "range_ratio",
+    "rv_ratio_12_48",
+    "atr_ratio_chg",
+    "vratio_12_48",
+    "rsi_bear_z_50",
+    "ma_align",
+    "vol_ma_ratio",
+    "bb_width_20",
+    "bb_width_chg",
+    "ret_kurt_20",
+    "aroon_dn_25",
+    "vortex_diff_14",
+    "vol_z_20",
+    "ret_24",
+    "ret_vol_adj_20",
+    "pos_in_range_100",
+    "lr_slope_20",
+    "pos_in_range_20",
+    "donchian_width_50",
+    "amihud_20",
+    "ma_slope_100",
+    "macd_hist",
+    "vol_price_corr_20",
+    "upper_shadow_ma5",
+    "roc_48"
+   ],
+   "regime_rule": "none",
+   "frozen_params": {
+    "dedup": 0.85,
+    "thr_q": 0.4,
+    "thr_abs": -0.019617817404054466,
+    "tp_mult": 1.5,
+    "sl_mult": 1.0,
+    "max_hold": 12,
+    "trail_mult": 0.0
+   },
+   "oof_metrics": {
+    "n": 178.0,
+    "sharpe": 2.6667876640655095,
+    "total_return": 0.07069379987828217,
+    "calmar": 4.878828707989049,
+    "max_drawdown": -0.019562732543599304,
+    "win_rate": 0.47752808988764045,
+    "payoff": 1.4338888889191264,
+    "tp_rate": 0.4438202247191011
+   },
+   "metrics": {
+    "train": {
+     "n_trades": 961.0,
+     "win_rate": 0.5348595213319459,
+     "avg_win": 4.52079585013095,
+     "avg_loss": -3.3201822224450543,
+     "payoff_ratio": 1.3616107632796546,
+     "profit_factor": 1.5657000723170973,
+     "avg_ret": 0.008736395562272308,
+     "total_pnl": 839.5676135343689,
+     "avg_bars": 4.851196670135276,
+     "tp_rate": 0.4963579604578564,
+     "sl_rate": 0.4308012486992716,
+     "timeout_rate": 0.07284079084287201,
+     "final_equity": 1837.5484956609318,
+     "total_return": 0.8375484956609318,
+     "sharpe": 4.460038063795411,
+     "calmar": 4.6548391737238335,
+     "max_drawdown": -0.04082302580142805
+    },
+    "oof": {
+     "n_trades": 178.0,
+     "win_rate": 0.47752808988764045,
+     "avg_win": 3.530129017617576,
+     "avg_loss": -2.4619264748460443,
+     "payoff_ratio": 1.4338888889191264,
+     "profit_factor": 1.3105436081518895,
+     "avg_ret": 0.00399448338970853,
+     "total_pnl": 71.10180433681184,
+     "avg_bars": 4.331460674157303,
+     "tp_rate": 0.4438202247191011,
+     "sl_rate": 0.5056179775280899,
+     "timeout_rate": 0.05056179775280899,
+     "final_equity": 1070.693799878282,
+     "total_return": 0.07069379987828217,
+     "sharpe": 2.6667876640655095,
+     "calmar": 4.878828707989049,
+     "max_drawdown": -0.019562732543599304
+    },
+    "ooc": {
+     "n_trades": 210.0,
+     "win_rate": 0.4142857142857143,
+     "avg_win": 2.7015154322271697,
+     "avg_loss": -2.119039617529313,
+     "payoff_ratio": 1.2748772650966256,
+     "profit_factor": 0.9017424558000521,
+     "avg_ret": -0.0012195252548734177,
+     "total_pnl": -25.61003035234176,
+     "avg_bars": 4.642857142857143,
+     "tp_rate": 0.37142857142857144,
+     "sl_rate": 0.5666666666666667,
+     "timeout_rate": 0.06190476190476191,
+     "final_equity": 974.3899696476582,
+     "total_return": -0.025610030352341773,
+     "sharpe": -1.0659746325651027,
+     "calmar": -0.7355184900259537,
+     "max_drawdown": -0.046239890116675175
+    }
+   }
+  },
+  "short": {
+   "pool": "core",
+   "model_name": "shallow",
+   "factors": [
+    "hour_sin",
+    "gap",
+    "mom_accel",
+    "ret_1",
+    "close_pos_in_bar",
+    "body_ratio",
+    "dow_cos"
+   ],
+   "regime_rule": "none",
+   "frozen_params": {
+    "dedup": 0.85,
+    "thr_q": 0.6,
+    "thr_abs": -0.006071051080520739,
+    "tp_mult": 1.5,
+    "sl_mult": 0.35,
+    "max_hold": 24,
+    "trail_mult": 0.0
+   },
+   "oof_metrics": {
+    "n": 415.0,
+    "sharpe": 2.2392795783762183,
+    "total_return": 0.0631496589691054,
+    "calmar": 2.7785160108596694,
+    "max_drawdown": -0.03064751308091762,
+    "win_rate": 0.23373493975903614,
+    "payoff": 3.976351202791413,
+    "tp_rate": 0.23373493975903614
+   },
+   "metrics": {
+    "train": {
+     "n_trades": 1862.0,
+     "win_rate": 0.20515574650912996,
+     "avg_win": 4.494736390587958,
+     "avg_loss": -1.2394799965890662,
+     "payoff_ratio": 3.6263081316012,
+     "profit_factor": 0.9359795312646341,
+     "avg_ret": -0.0006307255303287756,
+     "total_pnl": -117.44109374721803,
+     "avg_bars": 2.281954887218045,
+     "tp_rate": 0.2046186895810956,
+     "sl_rate": 0.7948442534908701,
+     "timeout_rate": 0.0005370569280343716,
+     "final_equity": 883.2955986107889,
+     "total_return": -0.11670440138921101,
+     "sharpe": -0.7184696744352463,
+     "calmar": -0.15240473293692994,
+     "max_drawdown": -0.22874245698407447
+    },
+    "oof": {
+     "n_trades": 415.0,
+     "win_rate": 0.23373493975903614,
+     "avg_win": 3.673323064103826,
+     "avg_loss": -0.9237924108728474,
+     "payoff_ratio": 3.976351202791413,
+     "profit_factor": 1.212912159342035,
+     "avg_ret": 0.0015071409773615826,
+     "total_pnl": 62.546350560505694,
+     "avg_bars": 2.221686746987952,
+     "tp_rate": 0.23373493975903614,
+     "sl_rate": 0.7662650602409639,
+     "timeout_rate": 0.0,
+     "final_equity": 1063.1496589691053,
+     "total_return": 0.0631496589691054,
+     "sharpe": 2.2392795783762183,
+     "calmar": 2.7785160108596694,
+     "max_drawdown": -0.03064751308091762
+    },
+    "ooc": {
+     "n_trades": 383.0,
+     "win_rate": 0.21148825065274152,
+     "avg_win": 2.988724083946907,
+     "avg_loss": -0.7647665433209454,
+     "payoff_ratio": 3.9080214871437513,
+     "profit_factor": 1.0481779485385558,
+     "avg_ret": 0.0002905262328139419,
+     "total_pnl": 11.127154716773969,
+     "avg_bars": 2.4725848563968666,
+     "tp_rate": 0.21148825065274152,
+     "sl_rate": 0.7885117493472585,
+     "timeout_rate": 0.0,
+     "final_equity": 1011.1271547167739,
+     "total_return": 0.011127154716773946,
+     "sharpe": 0.5545564479514781,
+     "calmar": 0.3465270669185633,
+     "max_drawdown": -0.0429063518513042
+    }
+   }
+  }
+ },
+ "short_vs_v6": [
+  {
+   "seg": "train",
+   "v6": {
+    "total_return": -0.06921225495939665,
+    "sharpe": -0.5946664121084554,
+    "calmar": -0.15330601555632925,
+    "max_drawdown": -0.13241331321555094,
+    "win_rate": 0.2565359477124183,
+    "payoff_ratio": 2.6501704854985078,
+    "n_trades": 612.0,
+    "tp_rate": 0.19281045751633988,
+    "sl_rate": 0.803921568627451,
+    "timeout_rate": 0.0032679738562091504
+   },
+   "v7": {
+    "total_return": -0.11670440138921101,
+    "sharpe": -0.7184696744352463,
+    "calmar": -0.15240473293692994,
+    "max_drawdown": -0.22874245698407447,
+    "win_rate": 0.20515574650912996,
+    "payoff_ratio": 3.6263081316012,
+    "n_trades": 1862.0,
+    "tp_rate": 0.2046186895810956,
+    "sl_rate": 0.7948442534908701,
+    "timeout_rate": 0.0005370569280343716
+   }
+  },
+  {
+   "seg": "oof",
+   "v6": {
+    "total_return": 0.05811152611605164,
+    "sharpe": 2.6109134349277388,
+    "calmar": 4.294281129816387,
+    "max_drawdown": -0.01823290864787397,
+    "win_rate": 0.3023255813953488,
+    "payoff_ratio": 3.43775708940075,
+    "n_trades": 129.0,
+    "tp_rate": 0.24806201550387597,
+    "sl_rate": 0.751937984496124,
+    "timeout_rate": 0.0
+   },
+   "v7": {
+    "total_return": 0.0631496589691054,
+    "sharpe": 2.2392795783762183,
+    "calmar": 2.7785160108596694,
+    "max_drawdown": -0.03064751308091762,
+    "win_rate": 0.23373493975903614,
+    "payoff_ratio": 3.976351202791413,
+    "n_trades": 415.0,
+    "tp_rate": 0.23373493975903614,
+    "sl_rate": 0.7662650602409639,
+    "timeout_rate": 0.0
+   }
+  },
+  {
+   "seg": "ooc",
+   "v6": {
+    "total_return": 0.01655756682381382,
+    "sharpe": 1.0010331858783383,
+    "calmar": 0.7585002014165602,
+    "max_drawdown": -0.029194812450523133,
+    "win_rate": 0.23577235772357724,
+    "payoff_ratio": 3.765144610990062,
+    "n_trades": 123.0,
+    "tp_rate": 0.16260162601626016,
+    "sl_rate": 0.8373983739837398,
+    "timeout_rate": 0.0
+   },
+   "v7": {
+    "total_return": 0.011127154716773946,
+    "sharpe": 0.5545564479514781,
+    "calmar": 0.3465270669185633,
+    "max_drawdown": -0.0429063518513042,
+    "win_rate": 0.21148825065274152,
+    "payoff_ratio": 3.9080214871437513,
+    "n_trades": 383.0,
+    "tp_rate": 0.21148825065274152,
+    "sl_rate": 0.7885117493472585,
+    "timeout_rate": 0.0
+   }
+  }
+ ],
+ "prune_log": {
+  "core|long|0.8": {
+   "before": [
+    "vol_ratio_5_20",
+    "range_ratio",
+    "rv_12",
+    "atr_ratio_chg",
+    "ma_align",
+    "vol_ma_ratio",
+    "bb_width_20",
+    "pos_in_range_50",
+    "vol_z_20",
+    "ret_24",
+    "bb_pos_20",
+    "rv_50",
+    "ret_12",
+    "macd_hist",
+    "ret_48",
+    "ma_ratio_200"
+   ],
+   "after": [
+    "vol_ratio_5_20",
+    "range_ratio",
+    "rv_12",
+    "atr_ratio_chg",
+    "ma_align",
+    "vol_ma_ratio",
+    "bb_width_20",
+    "pos_in_range_50",
+    "vol_z_20",
+    "ret_24",
+    "bb_pos_20",
+    "rv_50",
+    "ret_12",
+    "macd_hist",
+    "ret_48",
+    "ma_ratio_200"
+   ],
+   "dropped": [],
+   "max_vif_before": 8.6588510601835,
+   "max_vif_after": 8.6588510601835
+  },
+  "core|short|0.8": {
+   "before": [
+    "hour_sin",
+    "gap",
+    "mom_accel",
+    "ret_1",
+    "close_pos_in_bar",
+    "dow_cos"
+   ],
+   "after": [
+    "hour_sin",
+    "gap",
+    "mom_accel",
+    "ret_1",
+    "close_pos_in_bar",
+    "dow_cos"
+   ],
+   "dropped": [],
+   "max_vif_before": 2.068728565791589,
+   "max_vif_after": 2.068728565791589
+  },
+  "core|long|0.85": {
+   "before": [
+    "vol_ratio_5_20",
+    "range_ratio",
+    "rv_12",
+    "atr_ratio_chg",
+    "ma_align",
+    "vol_ma_ratio",
+    "atr_ratio",
+    "bb_width_20",
+    "pos_in_range_50",
+    "vol_z_20",
+    "ret_24",
+    "bb_pos_20",
+    "pos_in_range_100",
+    "lr_slope_20",
+    "ma_ratio_20",
+    "macd_signal",
+    "macd_hist",
+    "ma_ratio_200"
+   ],
+   "after": [
+    "vol_ratio_5_20",
+    "range_ratio",
+    "rv_12",
+    "atr_ratio_chg",
+    "ma_align",
+    "vol_ma_ratio",
+    "atr_ratio",
+    "bb_width_20",
+    "pos_in_range_50",
+    "vol_z_20",
+    "ret_24",
+    "bb_pos_20",
+    "pos_in_range_100",
+    "lr_slope_20",
+    "macd_hist",
+    "ma_ratio_200"
+   ],
+   "dropped": [
+    {
+     "factor": "ma_ratio_20",
+     "vif": 20.511625510518808,
+     "reason": "vif"
+    },
+    {
+     "factor": "macd_signal",
+     "vif": 16.32519939567347,
+     "reason": "vif"
+    }
+   ],
+   "max_vif_before": 20.511625510518808,
+   "max_vif_after": 6.6723861043285355
+  },
+  "core|short|0.85": {
+   "before": [
+    "hour_sin",
+    "gap",
+    "mom_accel",
+    "ret_1",
+    "close_pos_in_bar",
+    "body_ratio",
+    "dow_cos"
+   ],
+   "after": [
+    "hour_sin",
+    "gap",
+    "mom_accel",
+    "ret_1",
+    "close_pos_in_bar",
+    "body_ratio",
+    "dow_cos"
+   ],
+   "dropped": [],
+   "max_vif_before": 5.51233084032792,
+   "max_vif_after": 5.51233084032792
+  },
+  "core|long|0.9": {
+   "before": [
+    "vol_ratio_5_20",
+    "range_ratio",
+    "rv_12",
+    "atr_ratio_chg",
+    "ma_align",
+    "parkinson_20",
+    "vol_ma_ratio",
+    "bb_width_20",
+    "pos_in_range_50",
+    "vol_z_20",
+    "ret_24",
+    "bb_pos_20",
+    "rsi_14",
+    "rsi_div",
+    "pos_in_range_100",
+    "lr_slope_20",
+    "rv_50",
+    "ma_ratio_20",
+    "macd_signal",
+    "macd_hist",
+    "ret_48",
+    "ma_ratio_200"
+   ],
+   "after": [
+    "vol_ratio_5_20",
+    "range_ratio",
+    "rv_12",
+    "atr_ratio_chg",
+    "ma_align",
+    "parkinson_20",
+    "vol_ma_ratio",
+    "bb_width_20",
+    "pos_in_range_50",
+    "vol_z_20",
+    "ret_24",
+    "bb_pos_20",
+    "pos_in_range_100",
+    "lr_slope_20",
+    "rv_50",
+    "macd_hist",
+    "ret_48",
+    "ma_ratio_200"
+   ],
+   "dropped": [
+    {
+     "factor": "rsi_14",
+     "vif": 42.17735898284786,
+     "reason": "vif"
+    },
+    {
+     "factor": "macd_signal",
+     "vif": 26.55934549174472,
+     "reason": "vif"
+    },
+    {
+     "factor": "ma_ratio_20",
+     "vif": 25.502785171465806,
+     "reason": "vif"
+    },
+    {
+     "factor": "rsi_div",
+     "vif": 10.872891415405226,
+     "reason": "vif"
+    }
+   ],
+   "max_vif_before": 42.17735898284786,
+   "max_vif_after": 8.370609944653221
+  },
+  "core|short|0.9": {
+   "before": [
+    "hour_sin",
+    "gap",
+    "mom_accel",
+    "roc_6",
+    "ret_1",
+    "close_pos_in_bar",
+    "body_ratio",
+    "dow_cos"
+   ],
+   "after": [
+    "hour_sin",
+    "gap",
+    "mom_accel",
+    "roc_6",
+    "ret_1",
+    "close_pos_in_bar",
+    "body_ratio",
+    "dow_cos"
+   ],
+   "dropped": [],
+   "max_vif_before": 5.512690206710185,
+   "max_vif_after": 5.512690206710185
+  },
+  "expanded|long|0.8": {
+   "before": [
+    "shooting_20",
+    "ret_skew_20",
+    "rv_6",
+    "atr_z_20",
+    "up_vol_20",
+    "doji_20",
+    "vol_ratio_5_20",
+    "range_ratio",
+    "rv_ratio_12_48",
+    "atr_ratio_chg",
+    "vratio_12_48",
+    "up_mom_12",
+    "kc_width_20",
+    "rsi_bear_z_50",
+    "ma_align",
+    "vol_ma_ratio",
+    "bb_width_20",
+    "bb_width_chg",
+    "pos_in_range_50",
+    "ret_kurt_20",
+    "aroon_dn_25",
+    "vortex_diff_14",
+    "vol_z_20",
+    "ret_24",
+    "amihud_20",
+    "ma_slope_100",
+    "macd_hist",
+    "vol_price_corr_20",
+    "upper_shadow_ma5",
+    "ret_48",
+    "dn_mom_12"
+   ],
+   "after": [
+    "shooting_20",
+    "ret_skew_20",
+    "rv_6",
+    "atr_z_20",
+    "doji_20",
+    "vol_ratio_5_20",
+    "range_ratio",
+    "rv_ratio_12_48",
+    "atr_ratio_chg",
+    "vratio_12_48",
+    "kc_width_20",
+    "rsi_bear_z_50",
+    "ma_align",
+    "vol_ma_ratio",
+    "bb_width_20",
+    "bb_width_chg",
+    "pos_in_range_50",
+    "ret_kurt_20",
+    "aroon_dn_25",
+    "vortex_diff_14",
+    "vol_z_20",
+    "ret_24",
+    "amihud_20",
+    "ma_slope_100",
+    "macd_hist",
+    "vol_price_corr_20",
+    "upper_shadow_ma5",
+    "ret_48"
+   ],
+   "dropped": [
+    {
+     "factor": "dn_mom_12",
+     "vif": 15.065508279205165,
+     "reason": "vif"
+    },
+    {
+     "factor": "up_mom_12",
+     "vif": 11.770943419282498,
+     "reason": "vif"
+    },
+    {
+     "factor": "up_vol_20",
+     "vif": 10.49542762858354,
+     "reason": "vif"
+    }
+   ],
+   "max_vif_before": 15.065508279205165,
+   "max_vif_after": 7.318901668091738
+  },
+  "expanded|short|0.8": {
+   "before": [
+    "hour_sin",
+    "autocorr_1_20",
+    "gap",
+    "lower_high_20",
+    "vortex_neg_14",
+    "mom_accel",
+    "autocorr_5_50",
+    "dist_low_50",
+    "lower_shadow_ma5",
+    "gap_down_20",
+    "ret_1",
+    "lower_low_20",
+    "close_pos_in_bar",
+    "aroon_osc_25",
+    "dow_cos",
+    "dist_high_50",
+    "bars_since_high_50"
+   ],
+   "after": [
+    "hour_sin",
+    "autocorr_1_20",
+    "gap",
+    "lower_high_20",
+    "vortex_neg_14",
+    "mom_accel",
+    "autocorr_5_50",
+    "dist_low_50",
+    "lower_shadow_ma5",
+    "gap_down_20",
+    "ret_1",
+    "lower_low_20",
+    "close_pos_in_bar",
+    "aroon_osc_25",
+    "dow_cos",
+    "dist_high_50",
+    "bars_since_high_50"
+   ],
+   "dropped": [],
+   "max_vif_before": 2.867755575196633,
+   "max_vif_after": 2.867755575196633
+  },
+  "expanded|long|0.85": {
+   "before": [
+    "shooting_20",
+    "ret_skew_20",
+    "rv_6",
+    "atr_z_20",
+    "up_vol_20",
+    "doji_20",
+    "vol_ratio_5_20",
+    "range_ratio",
+    "rv_ratio_12_48",
+    "vol_asym_20",
+    "atr_ratio_chg",
+    "vratio_12_48",
+    "up_mom_12",
+    "kc_width_20",
+    "rsi_bear_z_50",
+    "ma_align",
+    "vol_ma_ratio",
+    "bb_width_20",
+    "bb_width_chg",
+    "pos_in_range_50",
+    "break_sup_20",
+    "ret_kurt_20",
+    "aroon_dn_25",
+    "vortex_diff_14",
+    "vol_z_20",
+    "ret_24",
+    "ret_vol_adj_20",
+    "pos_in_range_100",
+    "lr_slope_20",
+    "pos_in_range_20",
+    "ma_ratio_20",
+    "macd_signal",
+    "donchian_width_50",
+    "amihud_20",
+    "ma_slope_100",
+    "macd_hist",
+    "vol_price_corr_20",
+    "upper_shadow_ma5",
+    "roc_48",
+    "dn_mom_12"
+   ],
+   "after": [
+    "shooting_20",
+    "ret_skew_20",
+    "rv_6",
+    "atr_z_20",
+    "up_vol_20",
+    "doji_20",
+    "vol_ratio_5_20",
+    "range_ratio",
+    "rv_ratio_12_48",
+    "atr_ratio_chg",
+    "vratio_12_48",
+    "rsi_bear_z_50",
+    "ma_align",
+    "vol_ma_ratio",
+    "bb_width_20",
+    "bb_width_chg",
+    "ret_kurt_20",
+    "aroon_dn_25",
+    "vortex_diff_14",
+    "vol_z_20",
+    "ret_24",
+    "ret_vol_adj_20",
+    "pos_in_range_100",
+    "lr_slope_20",
+    "pos_in_range_20",
+    "donchian_width_50",
+    "amihud_20",
+    "ma_slope_100",
+    "macd_hist",
+    "vol_price_corr_20",
+    "upper_shadow_ma5",
+    "roc_48"
+   ],
+   "dropped": [
+    {
+     "factor": "vol_asym_20",
+     "vif": 44.505317584803166,
+     "reason": "vif"
+    },
+    {
+     "factor": "ma_ratio_20",
+     "vif": 36.34310359472441,
+     "reason": "vif"
+    },
+    {
+     "factor": "macd_signal",
+     "vif": 32.80960458167539,
+     "reason": "vif"
+    },
+    {
+     "factor": "kc_width_20",
+     "vif": 17.589623444484623,
+     "reason": "vif"
+    },
+    {
+     "factor": "dn_mom_12",
+     "vif": 14.46197260822127,
+     "reason": "vif"
+    },
+    {
+     "factor": "break_sup_20",
+     "vif": 11.405022246125869,
+     "reason": "vif"
+    },
+    {
+     "factor": "up_mom_12",
+     "vif": 11.034597596221024,
+     "reason": "vif"
+    },
+    {
+     "factor": "pos_in_range_50",
+     "vif": 10.427962782794975,
+     "reason": "vif"
+    }
+   ],
+   "max_vif_before": 44.505317584803166,
+   "max_vif_after": 8.558252467195446
+  },
+  "expanded|short|0.85": {
+   "before": [
+    "hour_sin",
+    "autocorr_1_20",
+    "gap",
+    "lower_high_20",
+    "vortex_neg_14",
+    "mom_accel",
+    "autocorr_5_50",
+    "dist_low_50",
+    "lower_shadow_ma5",
+    "gap_down_20",
+    "ret_1",
+    "lower_low_20",
+    "close_pos_in_bar",
+    "body_ratio",
+    "aroon_osc_25",
+    "dow_cos",
+    "dist_high_50",
+    "bars_since_high_50"
+   ],
+   "after": [
+    "hour_sin",
+    "autocorr_1_20",
+    "gap",
+    "lower_high_20",
+    "vortex_neg_14",
+    "mom_accel",
+    "autocorr_5_50",
+    "dist_low_50",
+    "lower_shadow_ma5",
+    "gap_down_20",
+    "ret_1",
+    "lower_low_20",
+    "close_pos_in_bar",
+    "body_ratio",
+    "aroon_osc_25",
+    "dow_cos",
+    "dist_high_50",
+    "bars_since_high_50"
+   ],
+   "dropped": [],
+   "max_vif_before": 6.022274339516865,
+   "max_vif_after": 6.022274339516865
+  },
+  "expanded|long|0.9": {
+   "before": [
+    "shooting_20",
+    "ret_skew_20",
+    "rv_6",
+    "atr_z_20",
+    "up_vol_20",
+    "doji_20",
+    "vol_ratio_5_20",
+    "range_ratio",
+    "rv_ratio_6_24",
+    "rv_12",
+    "rv_ratio_12_48",
+    "vol_asym_20",
+    "atr_ratio_chg",
+    "vratio_12_48",
+    "up_mom_12",
+    "kc_width_20",
+    "rsi_bear_z_50",
+    "ma_align",
+    "vol_ma_ratio",
+    "bb_width_20",
+    "bb_width_chg",
+    "pos_in_range_50",
+    "break_sup_20",
+    "ret_kurt_20",
+    "aroon_dn_25",
+    "vortex_diff_14",
+    "vol_z_20",
+    "ret_24",
+    "mfi_14",
+    "kc_pos_20",
+    "ret_vol_adj_20",
+    "rsi_28",
+    "pos_in_range_100",
+    "lr_slope_20",
+    "rv_50",
+    "pos_in_range_20",
+    "ret_12",
+    "macd_signal",
+    "donchian_width_50",
+    "amihud_20",
+    "ma_slope_100",
+    "macd_hist",
+    "vol_price_corr_20",
+    "upper_shadow_ma5",
+    "ret_48",
+    "dn_mom_12"
+   ],
+   "after": [
+    "shooting_20",
+    "ret_skew_20",
+    "atr_z_20",
+    "doji_20",
+    "vol_ratio_5_20",
+    "range_ratio",
+    "rv_ratio_6_24",
+    "rv_ratio_12_48",
+    "atr_ratio_chg",
+    "vratio_12_48",
+    "up_mom_12",
+    "rsi_bear_z_50",
+    "ma_align",
+    "vol_ma_ratio",
+    "bb_width_20",
+    "bb_width_chg",
+    "ret_kurt_20",
+    "aroon_dn_25",
+    "vol_z_20",
+    "ret_24",
+    "mfi_14",
+    "ret_vol_adj_20",
+    "pos_in_range_100",
+    "lr_slope_20",
+    "rv_50",
+    "pos_in_range_20",
+    "ret_12",
+    "donchian_width_50",
+    "amihud_20",
+    "ma_slope_100",
+    "macd_hist",
+    "vol_price_corr_20",
+    "upper_shadow_ma5",
+    "ret_48",
+    "dn_mom_12"
+   ],
+   "dropped": [
+    {
+     "factor": "kc_pos_20",
+     "vif": 57.607973403239136,
+     "reason": "vif"
+    },
+    {
+     "factor": "rv_12",
+     "vif": 56.1499821845184,
+     "reason": "vif"
+    },
+    {
+     "factor": "vol_asym_20",
+     "vif": 45.28239624590364,
+     "reason": "vif"
+    },
+    {
+     "factor": "macd_signal",
+     "vif": 37.27920426348777,
+     "reason": "vif"
+    },
+    {
+     "factor": "rsi_28",
+     "vif": 27.740184065743673,
+     "reason": "vif"
+    },
+    {
+     "factor": "kc_width_20",
+     "vif": 22.22926144247824,
+     "reason": "vif"
+    },
+    {
+     "factor": "rv_6",
+     "vif": 15.07730727565887,
+     "reason": "vif"
+    },
+    {
+     "factor": "vortex_diff_14",
+     "vif": 11.807293847695794,
+     "reason": "vif"
+    },
+    {
+     "factor": "break_sup_20",
+     "vif": 11.39300643969841,
+     "reason": "vif"
+    },
+    {
+     "factor": "pos_in_range_50",
+     "vif": 10.475952117690554,
+     "reason": "vif"
+    },
+    {
+     "factor": "up_vol_20",
+     "vif": 10.069980243893726,
+     "reason": "vif"
+    }
+   ],
+   "max_vif_before": 57.607973403239136,
+   "max_vif_after": 8.897077948947663
+  },
+  "expanded|short|0.9": {
+   "before": [
+    "hour_sin",
+    "autocorr_1_20",
+    "gap",
+    "lower_high_20",
+    "bear_persist",
+    "vortex_neg_14",
+    "mom_accel",
+    "autocorr_5_50",
+    "dist_low_50",
+    "lower_shadow_ma5",
+    "gap_down_20",
+    "mom_asym_12",
+    "ret_6",
+    "ret_1",
+    "close_pos_in_bar",
+    "body_ratio",
+    "aroon_osc_25",
+    "dow_cos",
+    "dist_high_50",
+    "bars_since_high_50"
+   ],
+   "after": [
+    "hour_sin",
+    "autocorr_1_20",
+    "gap",
+    "lower_high_20",
+    "bear_persist",
+    "vortex_neg_14",
+    "mom_accel",
+    "autocorr_5_50",
+    "dist_low_50",
+    "lower_shadow_ma5",
+    "gap_down_20",
+    "mom_asym_12",
+    "ret_1",
+    "close_pos_in_bar",
+    "body_ratio",
+    "aroon_osc_25",
+    "dow_cos",
+    "dist_high_50",
+    "bars_since_high_50"
+   ],
+   "dropped": [
+    {
+     "factor": "ret_6",
+     "vif": 18.264865163422943,
+     "reason": "vif"
+    }
+   ],
+   "max_vif_before": 18.264865163422943,
+   "max_vif_after": 6.040650477662206
+  }
+ },
+ "consistency": {
+  "n_fail": 0,
+  "checks": [
+   {
+    "check": "数据起点对齐 DATA_START",
+    "pass": true,
+    "detail": "起点 2021-10-01 -> 首根 2021-10-01 00:00"
+   },
+   {
+    "check": "数据切分 70/15/15",
+    "pass": true,
+    "detail": "train 7659 / oof 1641 / ooc 1642"
+   },
+   {
+    "check": "三段严格时序不重叠",
+    "pass": true,
+    "detail": "train[0,7659) oof[7659,9300) ooc[9300,10942)"
+   },
+   {
+    "check": "选择只发生在 OOF, 且仅空头被重优化",
+    "pass": true,
+    "detail": "空头选择段 OOF[7659,9300); 多头沿用 v6 冻结配置(未重新择优)"
+   },
+   {
+    "check": "止盈/止损硬约束 tp > sl",
+    "pass": true,
+    "detail": "short tp=1.50 > sl=0.35"
+   },
+   {
+    "check": "多头沿用 v6 冻结配置(因子/制度/参数一致)",
+    "pass": true,
+    "detail": "v6 long: 池expanded rule=none 因子32 | v7 复现因子32"
+   },
+   {
+    "check": "空头制度门控生效且与冻结评估一致",
+    "pass": true,
+    "detail": "short: rule=none, OOC 门控前信号 960 -> 门控后 960, 冻结复核偏差 0"
+   },
+   {
+    "check": "跟踪止损参数冻结且可复现",
+    "pass": true,
+    "detail": "short: trail=0.0×ATR, OOF 笔数 网格415 vs 重放415"
+   },
+   {
+    "check": "空头 VIF 迭代剪枝(冻结集 VIF<=10 且为去冗余子集)",
+    "pass": true,
+    "detail": "short: 池core 剪枝前7->后7, 最大VIF 5.51->5.51"
+   },
+   {
+    "check": "阈值由 OOF 冻结, 非 OOC 自身分位",
+    "pass": true,
+    "detail": "short: 冻结(OOF) -0.006071 vs OOC自身分位 -0.005770"
+   },
+   {
+    "check": "OOF 冻结评估与网格最优一致",
+    "pass": true,
+    "detail": "short: 网格 6.31%/夏普2.24 vs 复评 6.31%/夏普2.24"
+   },
+   {
+    "check": "成本口径 = 单边 5bp / 双边 10bp",
+    "pass": true,
+    "detail": "逐笔复核 4009 笔, 不一致 0 笔"
+   },
+   {
+    "check": "资金口径 1000 本金 / 单笔 100",
+    "pass": true,
+    "detail": "INIT_CAPITAL=1000 TRADE_NOTIONAL=100"
+   },
+   {
+    "check": "信号 t 收盘 -> t+1 开盘成交(无未来函数)",
+    "pass": true,
+    "detail": "全部 4009 笔成交价 == open[entry_idx], 不一致 0 笔"
+   },
+   {
+    "check": "空头制度掩码仅用过去信息(截断后取值不变)",
+    "pass": true,
+    "detail": "规则: sma100, sma200_slope, atr_pct, sma_align, ema_bear, breakdown_20, bear_vol"
+   },
+   {
+    "check": "多空独立: 空头重新择优, 多头冻结 v6",
+    "pass": true,
+    "detail": "short(池core, none, 7因子) | long(池expanded, none, 32因子)"
+   }
+  ]
+ }
+}

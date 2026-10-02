@@ -48,8 +48,13 @@ def simulate_signals(signals: np.ndarray, o: np.ndarray, h: np.ndarray, l: np.nd
                      c: np.ndarray, atr: np.ndarray, times: np.ndarray,
                      side: str, tp_mult: float, sl_mult: float,
                      max_hold: int, notional: float,
-                     trail_mult: float = 0.0) -> List[Trade]:
+                     trail_mult: float = 0.0,
+                     scan_lo: int = 1, scan_hi: int = None) -> List[Trade]:
     """按信号数组模拟单腿交易(同一时刻最多一笔)。signals[t]=True 表示 t 收盘发信号。
+
+    scan_lo/scan_hi: 只在 [scan_lo, scan_hi) 内查找入场信号(出场仍可延伸到序列末端)。
+    因信号在评估段之外恒为 False, 限定扫描区间不改变结果, 但可把每次评估的开销从
+    全序列降到评估段长度(评估网格动辄上万组, 这是关键提速)。
 
     trail_mult > 0 时启用 **ATR 跟踪止损**: 止损随持仓期内的有利极值单向移动
         long : sl_dyn = max(sl_init, 最高价 - trail_mult * ATR)
@@ -62,8 +67,9 @@ def simulate_signals(signals: np.ndarray, o: np.ndarray, h: np.ndarray, l: np.nd
     trades: List[Trade] = []
     cost = _round_trip_cost()
     trail = trail_mult > 0
-    i = 1
-    while i < n - 1:
+    hi = (n - 1) if scan_hi is None else int(scan_hi)
+    i = max(1, int(scan_lo))
+    while i < hi:
         if not signals[i] or not np.isfinite(atr[i]) or atr[i] <= 0:
             i += 1
             continue
@@ -175,11 +181,12 @@ def evaluate_with_threshold(pred: np.ndarray, ohlc: dict, atr: np.ndarray, times
     sig = signal_from_threshold(pred, side, thr_abs, start, end, regime=regime)
     trades = simulate_signals(sig, ohlc["open"], ohlc["high"], ohlc["low"], ohlc["close"],
                               atr, times, side, tp_mult, sl_mult,
-                              max_hold, notional, trail_mult=trail_mult)
-    eq = equity_from_trades(trades, len(pred))
+                              max_hold, notional, trail_mult=trail_mult,
+                              scan_lo=start, scan_hi=end)
+    eq = equity_from_trades(trades, len(pred), lo=start, hi=end)
     from src.metrics import summarize
-    m = summarize(trades, eq[start:end])
-    return {"metrics": m, "trades": trades, "equity": eq[start:end],
+    m = summarize(trades, eq)
+    return {"metrics": m, "trades": trades, "equity": eq,
             "thr_abs": float(thr_abs), "n_signals": int(sig.sum())}
 
 
@@ -194,15 +201,22 @@ def evaluate_with_params(pred: np.ndarray, ohlc: dict, atr: np.ndarray, times: n
                                    tp_mult, sl_mult, notional, max_hold, trail_mult, regime)
 
 
-def equity_from_trades(trades: List[Trade], n_bars: int) -> np.ndarray:
-    """按 bar 记权益曲线(含持仓浮盈), 用于算夏普/回撤。"""
-    eq = np.full(n_bars, C.INIT_CAPITAL, dtype=float)
+def equity_from_trades(trades: List[Trade], n_bars: int, lo: int = 0, hi: int = None) -> np.ndarray:
+    """按 bar 记权益曲线(含持仓浮盈), 用于算夏普/回撤。
+
+    lo/hi: 只构造 [lo, hi) 区间的权益(评估段)。评估网格动辄上万组, 逐组算全序列
+    权益会成为瓶颈; 因评估段内成交的建仓索引都 >= lo, 段内权益起点即 INIT_CAPITAL,
+    限定区间不改变段内指标。默认 lo=0/hi=n_bars 即全序列。
+    """
+    hi = n_bars if hi is None else int(hi)
+    lo = int(lo)
+    eq = np.full(hi - lo, C.INIT_CAPITAL, dtype=float)
     realized = 0.0
     open_trades = []
     by_entry = {}
     for t in trades:
         by_entry.setdefault(t.entry_idx, []).append(t)
-    for i in range(n_bars):
+    for i in range(lo, hi):
         for t in by_entry.get(i, []):
             open_trades.append(t)
         # 平掉已到期的
@@ -219,5 +233,5 @@ def equity_from_trades(trades: List[Trade], n_bars: int) -> np.ndarray:
             span = max(1, t.exit_idx - t.entry_idx)
             frac = min(1.0, max(0.0, (i - t.entry_idx) / span))
             unreal += t.pnl_usdt * frac
-        eq[i] = C.INIT_CAPITAL + realized + unreal
+        eq[i - lo] = C.INIT_CAPITAL + realized + unreal
     return eq

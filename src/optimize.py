@@ -237,3 +237,103 @@ def optimize_full_on_oof(F: pd.DataFrame, y: pd.Series, factor_sets: Dict[float,
                             ("n", "sharpe", "total_return", "calmar", "max_drawdown",
                              "win_rate", "payoff", "tp_rate")})
     return out, agg, raw
+
+
+# ================================================ v6: 因子池 × 制度 × 去冗余 × 模型 × 执行
+def _exec_grid_v6(thr_grid, hold_grid, trail_grid, sl_grid=None,
+                  tp_gt_sl: bool = True) -> List[dict]:
+    """v6 执行网格: 阈值分位(加密) × 止盈 × 止损 × 最长持有期 × **ATR 跟踪止损**。
+
+    tp_gt_sl=True 时只保留 `tp_mult > sl_mult` 的组合(沿用 v3 的风险报酬比 > 1 约束)。
+    sl_grid: 止损候选网格, 默认用 v5 的 SL_ATR_GRID; v7 传 V7_SL_GRID(下探到 0.35)。
+    """
+    sl_grid = C.SL_ATR_GRID if sl_grid is None else sl_grid
+    grid = [dict(thr_q=q, tp_mult=tp, sl_mult=sl, max_hold=h, trail_mult=tr)
+            for q, tp, sl, h, tr in product(thr_grid, C.TP_ATR_GRID, sl_grid,
+                                            hold_grid, trail_grid)]
+    if tp_gt_sl:
+        grid = [g for g in grid if g["tp_mult"] > g["sl_mult"]]
+    return grid
+
+
+def optimize_v6_on_oof(F: pd.DataFrame, y: pd.Series,
+                       factor_sets: Dict[Tuple[str, float], List[str]],
+                       side: str, ohlc: dict, atr: np.ndarray, times: np.ndarray,
+                       train_slice: slice, oof_slice: slice,
+                       regimes: Dict[str, np.ndarray],
+                       thr_grid=None, hold_grid=None, trail_grid=None, sl_grid=None,
+                       tp_gt_sl: bool = True,
+                       verbose: bool = True) -> Tuple[dict, pd.DataFrame, pd.DataFrame]:
+    """v6 主优化: 在 **OOF** 上联合择优 (因子池 × 制度规则 × 去冗余阈值 × 模型 × 执行参数)。
+
+    相对 `optimize_full_on_oof` 的三点改进:
+      1. **模型只训练一次**: 制度门控只作用于信号掩码, 不改变模型预测, 故每个
+         (因子池, 去冗余, 模型) 只训练一次, 随后在所有制度规则上复用同一预测 —— 省去重复训练;
+      2. 执行网格**加入 ATR 跟踪止损**(trail_mult), 并支持自定义阈值/持有/跟踪网格;
+      3. 外层新增**因子池**维度(core / expanded), 让"该用原有因子还是扩充因子"由 OOF 决定。
+
+    训练只用 train、选择只用 OOF; OOC 全程不参与。
+    factor_sets: {(因子池, 去冗余阈值): 该方向因子列表}(由 factor_select 在 train 上产出)
+    regimes:     {制度规则名: 该方向的全序列 bool 掩码}
+    返回 (best, agg, raw); best 含 pool / regime_rule / trail_mult。
+    """
+    ts, te = train_slice.start, train_slice.stop
+    thr_grid = C.V6_THR_GRID if thr_grid is None else thr_grid
+    hold_grid = C.V6_HOLD_GRID if hold_grid is None else hold_grid
+    trail_grid = C.V6_TRAIL_GRID if trail_grid is None else trail_grid
+    grid = _exec_grid_v6(thr_grid, hold_grid, trail_grid, sl_grid=sl_grid, tp_gt_sl=tp_gt_sl)
+    rows: List[dict] = []
+    trained: Dict[Tuple[Tuple[str, float], str], models.TrainedModel] = {}
+
+    for (pool, dedup), facs in factor_sets.items():
+        if not facs:
+            print("    [%s] 池 %s |corr|<%.2f 无可用因子, 跳过" % (side, pool, dedup))
+            continue
+        for mc in models.MODEL_GRID:
+            tm = models.train_side(F.iloc[ts:te], y.iloc[ts:te], facs, side,
+                                   params=models.resolve_params(mc), verbose=False)
+            trained[((pool, dedup), mc["name"])] = tm
+            pred = tm.predict(F)                       # 全序列预测, 仅取 OOF 段评估
+            for rule, mask in regimes.items():
+                for ec in grid:
+                    r = evaluate_with_params(pred, ohlc, atr, times, side,
+                                             oof_slice.start, oof_slice.stop,
+                                             ec["thr_q"], ec["tp_mult"], ec["sl_mult"],
+                                             max_hold=ec["max_hold"],
+                                             trail_mult=ec["trail_mult"], regime=mask)
+                    m = r["metrics"]
+                    rows.append(dict(pool=pool, regime=rule, dedup=float(dedup),
+                                     n_factors=len(facs), model=mc["name"],
+                                     thr_q=float(ec["thr_q"]),
+                                     tp_mult=float(ec["tp_mult"]), sl_mult=float(ec["sl_mult"]),
+                                     max_hold=int(ec["max_hold"]),
+                                     trail_mult=float(ec["trail_mult"]),
+                                     thr_abs=float(r["thr_abs"]), n=int(m["n_trades"]),
+                                     sharpe=float(m["sharpe"]),
+                                     total_return=float(m["total_return"]),
+                                     calmar=float(m["calmar"]),
+                                     max_drawdown=float(m["max_drawdown"]),
+                                     win_rate=float(m["win_rate"]),
+                                     payoff=float(m["payoff_ratio"]),
+                                     tp_rate=float(m["tp_rate"])))
+        if verbose:
+            print("    [%s] 池 %-8s 去冗余 |corr|<%.2f -> 因子 %2d 个 | %d 模型 × %d 制度 × %d 执行"
+                  % (side, pool, dedup, len(facs), len(models.MODEL_GRID), len(regimes), len(grid)))
+
+    raw = pd.DataFrame(rows)
+    if raw.empty:
+        raise RuntimeError("OOF 网格为空: %s" % side)
+    agg = _select_best(raw)
+    best = agg.iloc[0]
+    name = best["model"]
+    tkey = (str(best["pool"]), float(best["dedup"]))
+    out = dict(pool=str(best["pool"]), regime_rule=str(best["regime"]),
+               dedup=float(best["dedup"]), model_name=name,
+               model=trained[(tkey, name)],
+               thr_q=float(best["thr_q"]), thr_abs=float(best["thr_abs"]),
+               tp_mult=float(best["tp_mult"]), sl_mult=float(best["sl_mult"]),
+               max_hold=int(best["max_hold"]), trail_mult=float(best["trail_mult"]),
+               oof_metrics={k: float(best[k]) for k in
+                            ("n", "sharpe", "total_return", "calmar", "max_drawdown",
+                             "win_rate", "payoff", "tp_rate")})
+    return out, agg, raw

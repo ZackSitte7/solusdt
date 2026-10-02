@@ -52,6 +52,19 @@ def _safe_div(a: pd.Series, b: pd.Series) -> pd.Series:
     return a / b.replace(0, np.nan)
 
 
+def _bars_since(s: pd.Series, n: int, is_min: bool = False) -> pd.Series:
+    """自窗口内极值(最高/最低)以来经过的根数(0 = 本根即极值)。只用 t 及之前的信息。"""
+    fn = (lambda a: float(len(a) - 1 - int(np.argmin(a)))) if is_min \
+        else (lambda a: float(len(a) - 1 - int(np.argmax(a))))
+    return s.rolling(n, min_periods=n).apply(fn, raw=True)
+
+
+def _rolling_corr(a: pd.Series, b: pd.Series, n: int) -> pd.Series:
+    """滚动相关系数(向量化: 协方差 / 标准差之积)。"""
+    return _safe_div(a.rolling(n, min_periods=n).cov(b),
+                     a.rolling(n, min_periods=n).std() * b.rolling(n, min_periods=n).std())
+
+
 def _adx(high: pd.Series, low: pd.Series, close: pd.Series, n: int) -> pd.Series:
     """ADX(n) —— 经典趋势强度指标(需求14 趋势类因子)。"""
     up, dn = high.diff(), -low.diff()
@@ -180,6 +193,130 @@ def build_factors(df: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
     f["hour_cos"] = np.cos(2 * np.pi * dt.dt.hour / 24.0)
     f["dow_sin"] = np.sin(2 * np.pi * dt.dt.dayofweek / 7.0)
     f["dow_cos"] = np.cos(2 * np.pi * dt.dt.dayofweek / 7.0)
+
+    # ================================================================ v6: 扩充因子库
+    # 目标: 在原有 61 个因子之外, 补足「波动率结构 / 高阶矩 / 自相关 / 趋势强度 /
+    # 量能资金流 / 形态统计」六个方向, 给因子筛选更多可挑的**正交**候选。
+    # 全部只用 rolling / shift / ewm(<=t), 无未来信息。
+    atr_rel = _safe_div(atr14, c)
+
+    # ---- 1) 波动率结构: 期限结构、波动率的波动率、更有效的波动率估计量
+    for n in (6, 24, 48):
+        f["rv_%d" % n] = lr.rolling(n, min_periods=n).std()
+    f["rv_ratio_6_24"] = _safe_div(f["rv_6"], f["rv_24"])
+    f["rv_ratio_12_48"] = _safe_div(lr.rolling(12, min_periods=12).std(), f["rv_48"])
+    f["vol_of_vol_20"] = atr_rel.rolling(20, min_periods=20).std()
+    f["atr_z_20"] = _safe_div(atr_rel - atr_rel.rolling(20, min_periods=20).mean(),
+                              atr_rel.rolling(20, min_periods=20).std())
+    f["bb_width_chg"] = _safe_div(f["bb_width_20"],
+                                  f["bb_width_20"].rolling(20, min_periods=20).mean()) - 1.0
+    hl_log, co_log = np.log(_safe_div(h, l)), np.log(_safe_div(c, o))
+    f["gk_vol_20"] = np.sqrt((0.5 * hl_log ** 2
+                              - (2.0 * np.log(2.0) - 1.0) * co_log ** 2)
+                             .rolling(20, min_periods=20).mean())          # Garman-Klass
+    hc, ho = np.log(_safe_div(h, c)), np.log(_safe_div(h, o))
+    lc, lo = np.log(_safe_div(l, c)), np.log(_safe_div(l, o))
+    f["rs_vol_20"] = np.sqrt((hc * ho + lc * lo).clip(lower=0)
+                             .rolling(20, min_periods=20).mean())          # Rogers-Satchell
+
+    # ---- 2) 高阶矩 / 涨跌波动不对称(恐慌与贪婪的形状差异)
+    f["ret_skew_20"] = lr.rolling(20, min_periods=20).skew()
+    f["ret_kurt_20"] = lr.rolling(20, min_periods=20).kurt()
+    f["up_vol_20"] = lr.clip(lower=0.0).rolling(20, min_periods=20).std()
+    f["dn_vol_20"] = (-lr).clip(lower=0.0).rolling(20, min_periods=20).std()
+    f["vol_asym_20"] = _safe_div(f["up_vol_20"] - f["dn_vol_20"],
+                                 f["up_vol_20"] + f["dn_vol_20"])
+
+    # ---- 3) 自相关 / 均值回归(趋势延续 vs 反转的可预测性)
+    f["autocorr_1_20"] = _rolling_corr(lr, lr.shift(1), 20)
+    f["autocorr_5_50"] = _rolling_corr(lr, lr.shift(5), 50)
+    f["ret1_z_20"] = _safe_div(lr, lr.rolling(20, min_periods=20).std())
+
+    # ---- 4) 趋势强度(补充): EMA 交叉、Aroon、Vortex、区间距离、极值时间
+    f["ema_ratio_9_21"] = _safe_div(_ema(c, 9) - _ema(c, 21), c)
+    f["ma_slope_100"] = _safe_div(_sma(c, 100), _sma(c, 100).shift(12)) - 1.0
+    f["trend_consistency_20"] = np.sign(lr).rolling(20, min_periods=20).mean()
+    n_ar = 25
+    # Aroon Up 用「距窗口最高价多少根」, Aroon Down 用「距窗口最低价多少根」
+    f["aroon_up_25"] = 100.0 * (n_ar - _bars_since(h, n_ar + 1, is_min=False)) / n_ar
+    f["aroon_dn_25"] = 100.0 * (n_ar - _bars_since(l, n_ar + 1, is_min=True)) / n_ar
+    f["aroon_osc_25"] = f["aroon_up_25"] - f["aroon_dn_25"]
+    tr_sum14 = pd.concat([(h - l), (h - c.shift(1)).abs(), (l - c.shift(1)).abs()],
+                         axis=1).max(axis=1).rolling(14, min_periods=14).sum()
+    f["vortex_pos_14"] = _safe_div((h - l.shift(1)).abs().rolling(14, min_periods=14).sum(), tr_sum14)
+    f["vortex_neg_14"] = _safe_div((l - h.shift(1)).abs().rolling(14, min_periods=14).sum(), tr_sum14)
+    f["vortex_diff_14"] = f["vortex_pos_14"] - f["vortex_neg_14"]
+    kc_mid = _ema(c, 20)
+    f["kc_pos_20"] = _safe_div(c - kc_mid, 2.0 * atr14)                  # Keltner 通道位置
+    f["kc_width_20"] = _safe_div(4.0 * atr14, kc_mid)
+    for n in (20, 50):
+        f["donchian_width_%d" % n] = _safe_div(h.rolling(n, min_periods=n).max()
+                                               - l.rolling(n, min_periods=n).min(), c)
+    f["dist_high_50"] = _safe_div(h.rolling(50, min_periods=50).max(), c) - 1.0
+    f["dist_low_50"] = _safe_div(l.rolling(50, min_periods=50).min(), c) - 1.0
+    f["bars_since_high_50"] = _bars_since(h, 50, is_min=False) / 50.0
+    f["bars_since_low_50"] = _bars_since(l, 50, is_min=True) / 50.0
+
+    # ---- 5) 超买超卖(补充): RSI 斜率 / 随机 RSI / Williams %R / 加速度
+    f["rsi_slope_14"] = f["rsi_14"] - f["rsi_14"].shift(5)
+    f["williams_r_14"] = -100.0 * _safe_div(hh14 - c, hh14 - ll14)
+    rmin = f["rsi_14"].rolling(14, min_periods=14).min()
+    rmax = f["rsi_14"].rolling(14, min_periods=14).max()
+    f["stoch_rsi_14"] = _safe_div(f["rsi_14"] - rmin, rmax - rmin)
+    f["roc_48"] = c / c.shift(48) - 1.0
+    f["price_accel"] = f["ret_3"] - f["ret_12"] / 4.0
+
+    # ---- 6) 量能 / 资金流(补充): MFI / CMF / 量价相关 / 非流动性
+    tp_ = (h + l + c) / 3.0
+    mf_ = tp_ * v
+    f["mfi_14"] = 100.0 - 100.0 / (1.0 + _safe_div(
+        mf_.where(tp_.diff() > 0, 0.0).rolling(14, min_periods=14).sum(),
+        mf_.where(tp_.diff() < 0, 0.0).rolling(14, min_periods=14).sum()))
+    f["cmf_20"] = _safe_div((_safe_div((c - l) - (h - c), h - l) * v)
+                            .rolling(20, min_periods=20).sum(), v.rolling(20, min_periods=20).sum())
+    f["vol_price_corr_20"] = _rolling_corr(lr, v.pct_change(), 20)
+    f["vratio_12_48"] = _safe_div(v.rolling(12, min_periods=12).mean(),
+                                  v.rolling(48, min_periods=48).mean())
+    f["amihud_20"] = _safe_div(lr.abs(), qv).rolling(20, min_periods=20).mean() * 1e6
+    f["obv_slope_50"] = _safe_div(obv - obv.shift(50), v.rolling(50, min_periods=50).sum())
+    f["quote_vol_ratio_5_20"] = _safe_div(_sma(qv, 5), _sma(qv, 20))
+
+    # ---- 7) K线形态统计(近 5/20 根的平均形态)
+    f["body_ratio_ma5"] = f["body_ratio"].rolling(5, min_periods=5).mean()
+    f["upper_shadow_ma5"] = f["upper_shadow"].rolling(5, min_periods=5).mean()
+    f["lower_shadow_ma5"] = f["lower_shadow"].rolling(5, min_periods=5).mean()
+    f["doji_20"] = (f["body_ratio"].abs() < 0.10).rolling(20, min_periods=20).mean()
+    f["hammer_20"] = ((f["lower_shadow"] > 0.5) & (f["body_ratio"] > -0.2)) \
+        .rolling(20, min_periods=20).mean()
+    f["shooting_20"] = ((f["upper_shadow"] > 0.5) & (f["body_ratio"] < 0.2)) \
+        .rolling(20, min_periods=20).mean()
+
+    # ---- 8) 时间(补充)
+    f["is_weekend"] = (dt.dt.dayofweek >= 5).astype(float)
+
+    # ================================================================ v7: 空头专用因子
+    # v6 的归因显示: 空头在 OOC(下跌市)反而亏钱 —— 说明通用因子没能刻画"下跌的结构"。
+    # 这里补一组只在空头逻辑里成立的因子: 下行动量的绝对强度、破位位置、高低点同步下移、
+    # 相对自身历史的超卖、跳空低开。它们对多头无意义, 故单列一组, 由 OOF 决定是否采用。
+    dn = (-lr).clip(lower=0.0)                    # 下跌幅度(正数)
+    up = lr.clip(lower=0.0)                       # 上涨幅度(正数)
+    f["dn_mom_12"] = dn.rolling(12, min_periods=12).sum()
+    f["up_mom_12"] = up.rolling(12, min_periods=12).sum()
+    f["mom_asym_12"] = _safe_div(f["dn_mom_12"] - f["up_mom_12"],
+                                 f["dn_mom_12"] + f["up_mom_12"])
+    f["ret_vol_adj_20"] = _safe_div(lr.rolling(20, min_periods=20).mean(),
+                                    lr.rolling(20, min_periods=20).std())
+    # 破位: 现价相对过去 20 根最低价/最高价的位置(负值 = 已跌破支撑)
+    f["break_sup_20"] = _safe_div(c, l.rolling(20, min_periods=20).min()) - 1.0
+    f["dist_res_20"] = _safe_div(h.rolling(20, min_periods=20).max(), c) - 1.0
+    # 结构走弱: 近 20 根里「高点下移」/「低点下移」的比例
+    f["lower_high_20"] = (h < h.shift(1)).rolling(20, min_periods=20).mean()
+    f["lower_low_20"] = (l < l.shift(1)).rolling(20, min_periods=20).mean()
+    f["bear_persist"] = f["lower_high_20"] * f["lower_low_20"]
+    # 相对自身历史(50 根)的超卖: RSI 的 z 分数(负 = 比自身常态更超卖)
+    f["rsi_bear_z_50"] = _safe_div(f["rsi_14"] - f["rsi_14"].rolling(50, min_periods=50).mean(),
+                                   f["rsi_14"].rolling(50, min_periods=50).std())
+    f["gap_down_20"] = ((o < c.shift(1)).astype(float)).rolling(20, min_periods=20).mean()
 
     F = pd.DataFrame(f, index=d.index)
     F = F.replace([np.inf, -np.inf], np.nan)

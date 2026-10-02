@@ -235,3 +235,66 @@ V5_REGIME_GRID = ("none", "sma100", "sma200", "sma200_slope")
 V5_REGIME_MA = {"sma100": 100, "sma200": 200, "sma200_slope": 200}
 V5_SLOPE_LOOKBACK = 12           # 均线倾斜的观察窗(根)
 V5_OUT_DIR = "v5"                # 产出目录 reports/v5
+
+# ================================================================ v6: 扩充因子库 + 更细阈值 + 跟踪止损 + 波动率制度
+# 入口脚本 run_backtest_v6.py。相对 v5 只动四处, 其余口径(切分/成本/目标函数/选择纪律)完全一致:
+#   1. **因子库扩充**(src/factors.py): 在原 61 个因子之外补足「波动率结构 / 高阶矩 / 自相关 /
+#      趋势强度(Aroon/Vortex/Keltner) / 量能资金流(MFI/CMF/Amihud) / 形态统计」等方向,
+#      因子总数增至 115 —— 给 IC/ICIR 筛选更多**正交**候选, 提高模型上限。
+#   2. **阈值分位加密**: 上限放宽到 0.90(v5 最优常顶在网格上边界, 更选择性的方向没被搜到)。
+#   3. **执行网格加入 ATR 跟踪止损**: 让走不出方向的仓位被截断、走出方向的仓位继续持有。
+#   4. **制度规则加入 atr_pct(低波动率门控)**: 只在 ATR% 处于过去 V6_VOL_WIN 根低分位时开仓。
+# 选择仍**只发生在 OOF**; OOC 全程只观察。
+# 另: 按用户要求, 回测数据起点对齐到 2021-10-01(此前的 2020-09~2021-09 段不参与)。
+DATA_START = "2021-10-01"        # 数据起始日期(UTC), 早于该日的 bar 全部丢弃
+
+V6_DEDUP_GRID = (0.80, 0.85, 0.90)          # 去冗余阈值(v5 中 0.95 从未入选, 收敛)
+V6_THR_GRID = (0.4, 0.5, 0.6, 0.7, 0.8, 0.85, 0.90)   # 阈值分位(上限放宽到 0.90)
+V6_HOLD_GRID = (12, 24)                     # 最长持有根数
+V6_TRAIL_GRID = (0.0, 1.5, 2.5)             # ATR 跟踪止损倍数; 0 = 关闭(回落 v5 行为)
+V6_REGIME_GRID = ("none", "sma100", "sma200_slope", "atr_pct")
+V6_VOL_WIN = 240                            # 波动率分位的回看窗(根)
+V6_VOL_MIN = 60                             # 波动率分位的最少样本
+V6_VOL_Q = 0.70                             # 只放行 ATR% <= 该分位的 bar
+V6_OUT_DIR = "v6"                           # 产出目录 reports/v6
+
+# 因子池(v6 新增一个 OOF 维度): 扩充后因子库 115 个, 但"多"不等于"好" —— 对某些方向,
+# 新因子可能挤掉原有更有效的因子。故把"候选池"本身作为一个**预注册超参**交给 OOF 择优:
+#   "core"     : v5 的原有 61 因子(横向对比的基线池)
+#   "expanded" : 扩充后的 115 因子
+# 每个池各自做 IC/ICIR 筛选 + 去冗余 + VIF 剪枝, 各自训练。OOF 上哪个池好就用哪个池。
+V6_FACTOR_POOLS = ("core", "expanded")
+# v5 原有因子名(用于构造 "core" 池; 与 factors.py 中同名因子定义完全一致)。
+V6_CORE_FACTORS = (
+    "ret_1", "ret_2", "ret_3", "ret_6", "ret_12", "ret_24", "ret_48",
+    "roc_6", "roc_12", "roc_24", "mom_accel",
+    "ma_ratio_20", "ma_ratio_50", "ma_ratio_100", "ma_ratio_200",
+    "ma_slope_20", "ma_slope_50", "ma_align", "macd", "macd_signal", "macd_hist",
+    "adx_14", "trend_strength_50", "lr_slope_20", "lr_slope_50",
+    "pos_in_range_20", "pos_in_range_50", "pos_in_range_100", "hh_count_20", "ll_count_20",
+    "atr_ratio", "atr_ratio_chg", "rv_12", "rv_20", "rv_50", "vol_ratio_5_20",
+    "bb_width_20", "bb_pos_20", "parkinson_20", "range_ratio",
+    "rsi_14", "rsi_28", "rsi_div", "stoch_k_14", "cci_20",
+    "vol_z_20", "vol_ma_ratio", "quote_vol_z_20", "obv_slope_20", "vwap_dev_20",
+    "close_pos_in_bar", "upper_shadow", "lower_shadow", "body_ratio", "gap",
+    "consec_up", "consec_dn", "hour_sin", "hour_cos", "dow_sin", "dow_cos",
+)
+
+# ================================================================ v7: 空头专用优化
+# 入口脚本 run_backtest_v7.py。依据对 v6 的归因 —— 空头在 OOC 由 +5.94% 崩到 -0.85%,
+# 且分月看是"下跌市里空头亏钱"的结构性失败。v7 **只重做空头**, 多头沿用 v6 冻结配置:
+#   1. **空头专用因子**(src/factors.py): 下行动量分解、破位/支撑阻力距离、结构走弱
+#      (高点和低点同时降低)、相对自身历史的超卖、跳空低开统计 —— 都是"空头逻辑"专属,
+#      多头用不到; 因子库 115 -> 126。
+#   2. **空头专用制度**: sma_align(空头排列) / ema_bear / breakdown_20(破 20 根新低) /
+#      bear_vol(空头排列 + 低波动); 制度网格 4 -> 8。
+#   3. **止损下探到 0.35×ATR**: v6 的 OOF 把 0.5 选成最优(网格下界), 说明真实最优可能在
+#      更紧的一侧 —— 把边界让开, 由 OOF 自己判断, 而不是由网格边界替它决定。
+# 选择仍**只发生在 OOF**; OOC 全程只观察。
+V7_SL_GRID = (0.35, 0.5, 0.75, 1.0, 1.5, 2.0, 2.5)      # 止损网格(下探到 0.35)
+V7_REGIME_GRID = ("none", "sma100", "sma200_slope", "atr_pct",
+                  "sma_align", "ema_bear", "breakdown_20", "bear_vol")
+V7_OUT_DIR = "v7"                           # 产出目录 reports/v7
+V7_ALIGN_SMA = (20, 50, 200)                # 空头排列用的均线组: close < MA20 < MA50 < MA200
+V7_EMA_PAIR = (21, 55)                      # ema_bear: close < EMA21 < EMA55
+V7_BREAKDOWN_WIN = 20                       # breakdown_20: 跌破过去 20 根的最低价
