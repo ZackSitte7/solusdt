@@ -35,6 +35,11 @@ reports/
 !reports/**/*.csv
 !reports/**/*.png
 
+# ---- 排除: v8/v9 的"配置×子折"原始网格转储 ----
+# 每个文件 ~108MB, 超出 GitHub 单文件 100MB 硬上限(会被拒绝推送);
+# 且可由 run_backtest_v8.py / run_backtest_v9.py 重新生成, 故不入库。
+reports/**/selection_folds_*.csv
+
 # ---- 敏感信息: 一律不得入库 ----
 .env
 .env.*

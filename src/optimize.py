@@ -337,3 +337,235 @@ def optimize_v6_on_oof(F: pd.DataFrame, y: pd.Series,
                             ("n", "sharpe", "total_return", "calmar", "max_drawdown",
                              "win_rate", "payoff", "tp_rate")})
     return out, agg, raw
+
+
+# ================================================ v8: OOF 内部分折 + 稳健选优
+def _v8_fold_slices(oof_slice: slice, n_folds: int) -> List[Tuple[int, int]]:
+    """把 OOF 段切成 n_folds 个**连续**子折(时间序, 互不重叠), 返回 [(lo, hi), ...]。
+
+    切分只发生在 OOF 内部: OOF 仍是从 train 之后、OOC 之前的那一段, 不触碰 OOC。
+    """
+    lo, hi = int(oof_slice.start), int(oof_slice.stop)
+    edges = np.linspace(lo, hi, int(n_folds) + 1).astype(int)
+    return [(int(edges[i]), int(edges[i + 1])) for i in range(int(n_folds))
+            if int(edges[i + 1]) - int(edges[i]) > 0]
+
+
+# 配置身份(= 一组超参)的全部维度; 聚合/报告/复核都按它分组。
+_V8_CONFIG_KEYS = ("pool", "regime", "dedup", "n_factors", "model",
+                   "thr_q", "tp_mult", "sl_mult", "max_hold", "trail_mult")
+
+
+def aggregate_v8(raw: pd.DataFrame) -> pd.DataFrame:
+    """把"配置 × 子折"长表聚合为**稳健得分表**(已按稳健得分降序)。
+
+    稳健得分 = 各折夏普均值 - V8_ROBUST_K × 各折夏普标准差;
+    排序: 稳健得分 -> 最差折夏普(maximin) -> 平均收益。
+    """
+    g = (raw.groupby(list(_V8_CONFIG_KEYS), as_index=False)
+            .agg(sharpe_mean=("sharpe", "mean"), sharpe_std=("sharpe", "std"),
+                 sharpe_min=("sharpe", "min"), sharpe_max=("sharpe", "max"),
+                 ret_mean=("total_return", "mean"), ret_min=("total_return", "min"),
+                 n_total=("n", "sum"), n_min=("n", "min"), n_max=("n", "max"),
+                 win_rate=("win_rate", "mean"), payoff=("payoff", "mean"),
+                 tp_rate=("tp_rate", "mean"), calmar=("calmar", "mean"),
+                 max_drawdown=("max_drawdown", "min"),
+                 n_pos_folds=("total_return", lambda x: int((x > 0).sum())),
+                 n_folds=("sharpe", "size")))
+    g["sharpe_std"] = g["sharpe_std"].fillna(0.0)
+    g["robust"] = g["sharpe_mean"] - C.V8_ROBUST_K * g["sharpe_std"]
+    return g.sort_values(["robust", "sharpe_min", "ret_mean"],
+                         ascending=False).reset_index(drop=True)
+
+
+def optimize_v8_on_oof(F: pd.DataFrame, y: pd.Series,
+                       factor_sets: Dict[Tuple[str, float], List[str]],
+                       side: str, ohlc: dict, atr: np.ndarray, times: np.ndarray,
+                       train_slice: slice, oof_slice: slice,
+                       regimes: Dict[str, np.ndarray],
+                       thr_grid=None, hold_grid=None, trail_grid=None, sl_grid=None,
+                       tp_gt_sl: bool = True, n_folds=None,
+                       verbose: bool = True) -> Tuple[dict, pd.DataFrame, pd.DataFrame]:
+    """v8 主优化: 网格/训练与 `optimize_v6_on_oof` 完全相同, **只改选优纪律**。
+
+    相对 v6/v7 的"整段 OOF 取最大 total_return":
+      1. 把 OOF 切成 n_folds 个**连续子折**, 每组配置在**每个子折**上独立评估
+         (阈值分位按子折自身预测计算; 子折仍在 OOF 内, 不触碰 OOC);
+      2. 过滤: OOF 总笔数 >= OOF_MIN_TRADES, **单折笔数 >= V8_MIN_TRADES_PER_FOLD**,
+         平均止盈率 >= MIN_TP_RATE;
+      3. 稳健得分 = 各折夏普均值 - V8_ROBUST_K × 标准差, 次目标为最差折夏普。
+    选定后**再在整段 OOF 上复评一次**, 取得与 v6/v7 同口径的冻结阈值(thr_abs)与指标。
+
+    选择仍**只发生在 OOF**; OOC 全程不参与。
+    返回 (best, agg, raw): raw 为"配置 × 子折"长表; agg 为稳健得分表(已排序)。
+    """
+    ts, te = train_slice.start, train_slice.stop
+    thr_grid = C.V6_THR_GRID if thr_grid is None else thr_grid
+    hold_grid = C.V6_HOLD_GRID if hold_grid is None else hold_grid
+    trail_grid = C.V6_TRAIL_GRID if trail_grid is None else trail_grid
+    folds = _v8_fold_slices(oof_slice, C.V8_N_FOLDS if n_folds is None else n_folds)
+    grid = _exec_grid_v6(thr_grid, hold_grid, trail_grid, sl_grid=sl_grid, tp_gt_sl=tp_gt_sl)
+    rows: List[dict] = []
+    trained: Dict[Tuple[Tuple[str, float], str], models.TrainedModel] = {}
+
+    for (pool, dedup), facs in factor_sets.items():
+        if not facs:
+            print("    [%s] 池 %s |corr|<%.2f 无可用因子, 跳过" % (side, pool, dedup))
+            continue
+        for mc in models.MODEL_GRID:
+            tm = models.train_side(F.iloc[ts:te], y.iloc[ts:te], facs, side,
+                                   params=models.resolve_params(mc), verbose=False)
+            trained[((pool, dedup), mc["name"])] = tm
+            pred = tm.predict(F)                       # 全序列预测, 只在 OOF 子折上评估
+            for rule, mask in regimes.items():
+                for ec in grid:
+                    for fi, (flo, fhi) in enumerate(folds, 1):
+                        r = evaluate_with_params(pred, ohlc, atr, times, side, flo, fhi,
+                                                 ec["thr_q"], ec["tp_mult"], ec["sl_mult"],
+                                                 max_hold=ec["max_hold"],
+                                                 trail_mult=ec["trail_mult"], regime=mask)
+                        m = r["metrics"]
+                        rows.append(dict(pool=pool, regime=rule, dedup=float(dedup),
+                                         n_factors=len(facs), model=mc["name"],
+                                         fold=fi, fold_lo=flo, fold_hi=fhi,
+                                         thr_q=float(ec["thr_q"]),
+                                         tp_mult=float(ec["tp_mult"]), sl_mult=float(ec["sl_mult"]),
+                                         max_hold=int(ec["max_hold"]),
+                                         trail_mult=float(ec["trail_mult"]),
+                                         n=int(m["n_trades"]), sharpe=float(m["sharpe"]),
+                                         total_return=float(m["total_return"]),
+                                         calmar=float(m["calmar"]),
+                                         max_drawdown=float(m["max_drawdown"]),
+                                         win_rate=float(m["win_rate"]),
+                                         payoff=float(m["payoff_ratio"]),
+                                         tp_rate=float(m["tp_rate"])))
+        if verbose:
+            print("    [%s] 池 %-8s 去冗余 |corr|<%.2f -> 因子 %2d 个 | %d 模型 × %d 制度 × %d 执行 × %d 子折"
+                  % (side, pool, dedup, len(facs), len(models.MODEL_GRID), len(regimes),
+                     len(grid), len(folds)))
+
+    raw = pd.DataFrame(rows)
+    if raw.empty:
+        raise RuntimeError("OOF 网格为空: %s" % side)
+    agg = aggregate_v8(raw)
+    ok = ((agg["n_total"] >= C.OOF_MIN_TRADES)
+          & (agg["n_min"] >= C.V8_MIN_TRADES_PER_FOLD)
+          & (agg["tp_rate"] >= C.MIN_TP_RATE))
+    usable = agg[ok]
+    if usable.empty:                       # 门槛过严时逐级退回, 保证总有解
+        usable = agg[agg["n_total"] >= C.OOF_MIN_TRADES]
+    if usable.empty:
+        usable = agg
+    best = usable.iloc[0]
+
+    name = str(best["model"])
+    tm = trained[((str(best["pool"]), float(best["dedup"])), name)]
+    pred = tm.predict(F)
+    full = evaluate_with_params(pred, ohlc, atr, times, side, oof_slice.start, oof_slice.stop,
+                                float(best["thr_q"]), float(best["tp_mult"]),
+                                float(best["sl_mult"]), max_hold=int(best["max_hold"]),
+                                trail_mult=float(best["trail_mult"]),
+                                regime=regimes[str(best["regime"])])
+    m = full["metrics"]
+    out = dict(pool=str(best["pool"]), regime_rule=str(best["regime"]),
+               dedup=float(best["dedup"]), model_name=name, model=tm,
+               thr_q=float(best["thr_q"]), thr_abs=float(full["thr_abs"]),
+               tp_mult=float(best["tp_mult"]), sl_mult=float(best["sl_mult"]),
+               max_hold=int(best["max_hold"]), trail_mult=float(best["trail_mult"]),
+               robust=float(best["robust"]), sharpe_mean=float(best["sharpe_mean"]),
+               sharpe_std=float(best["sharpe_std"]), sharpe_min=float(best["sharpe_min"]),
+               ret_mean=float(best["ret_mean"]), n_pos_folds=int(best["n_pos_folds"]),
+               n_folds=int(best["n_folds"]),
+               oof_metrics={"n": float(m["n_trades"]), "sharpe": float(m["sharpe"]),
+                            "total_return": float(m["total_return"]),
+                            "calmar": float(m["calmar"]),
+                            "max_drawdown": float(m["max_drawdown"]),
+                            "win_rate": float(m["win_rate"]),
+                            "payoff": float(m["payoff_ratio"]),
+                            "tp_rate": float(m["tp_rate"])})
+    return out, usable.reset_index(drop=True), raw
+
+
+# ================================================ v9: long+short 共同优化(合并总收益)
+def candidate_pool_v9(raw: pd.DataFrame, k_cfg: int, robust_k: float = None) -> pd.DataFrame:
+    """从单侧"配置×子折"长表里, 按**该侧稳健收益**(均值 - k×标准差)取前 k_cfg 个候选配置。
+
+    门槛与 v8 一致(OOF_MIN_TRADES / V8_MIN_TRADES_PER_FOLD / MIN_TP_RATE),
+    确保候选是"每个子折都真的在交易"的配置, 而不是只在个别子折蒙对的低频幻觉。
+    """
+    robust_k = C.V8_ROBUST_K if robust_k is None else robust_k
+    keys = list(_V8_CONFIG_KEYS)
+    g = (raw.groupby(keys, as_index=False)
+            .agg(ret_mean=("total_return", "mean"), ret_std=("total_return", "std"),
+                 ret_min=("total_return", "min"), n_total=("n", "sum"),
+                 n_min=("n", "min"), tp_rate=("tp_rate", "mean")))
+    g["ret_std"] = g["ret_std"].fillna(0.0)
+    g["robust_ret"] = g["ret_mean"] - robust_k * g["ret_std"]
+    ok = ((g["n_total"] >= C.OOF_MIN_TRADES)
+          & (g["n_min"] >= C.V8_MIN_TRADES_PER_FOLD)
+          & (g["tp_rate"] >= C.MIN_TP_RATE))
+    u = g[ok]
+    if u.empty:                                 # 门槛过严时退回全量, 保证总有候选
+        u = g
+    u = u.sort_values(["robust_ret", "ret_min", "ret_mean"], ascending=False)
+    return u.head(int(k_cfg)).reset_index(drop=True)
+
+
+def _fold_return_matrix(raw: pd.DataFrame, pool: pd.DataFrame) -> np.ndarray:
+    """把候选池 × 子折的 total_return 整理成 (n_pool, n_folds) 矩阵(pool 顺序不变)。"""
+    keys = list(_V8_CONFIG_KEYS)
+    n_folds = int(raw["fold"].nunique())
+    sub = pool[keys].merge(raw[keys + ["fold", "total_return"]], on=keys, how="left")
+    sub = sub.sort_values(keys + ["fold"], kind="mergesort").reset_index(drop=True)
+    if len(sub) != len(pool) * n_folds:
+        raise RuntimeError("子折收益矩阵不完整: %d != %d x %d"
+                           % (len(sub), len(pool), n_folds))
+    return sub["total_return"].to_numpy(dtype=float).reshape(len(pool), n_folds)
+
+
+def joint_select_v9(long_raw: pd.DataFrame, short_raw: pd.DataFrame, k_cfg: int,
+                    robust_k: float = None, top_report: int = 30):
+    """v9 联合选优: 两侧各取候选池, 再在**合并逐折收益**上联合排序。
+
+    合并口径与 v7 一致: `equity_combined = eq_long + eq_short - INIT_CAPITAL`,
+    故**合并收益 = 两侧收益之和**(逐折相加)。
+    主目标 = mean(rc) - k×std(rc), 次目标 = 最差折 rc(maximin), 三目标 = mean(rc)。
+
+    返回 (best, pairs, pool_long, pool_short):
+      best  = dict(long=..., short=..., robust_combined, mean_combined, worst_combined,
+                   std_combined, fold_returns=list)
+      pairs = 前 top_report 个组合的明细表(含两侧配置与合并指标)
+    """
+    robust_k = C.V8_ROBUST_K if robust_k is None else robust_k
+    pl = candidate_pool_v9(long_raw, k_cfg, robust_k)
+    ps = candidate_pool_v9(short_raw, k_cfg, robust_k)
+    RL = _fold_return_matrix(long_raw, pl)          # (nL, F)
+    RS = _fold_return_matrix(short_raw, ps)         # (nS, F)
+
+    rc = RL[:, None, :] + RS[None, :, :]            # (nL, nS, F) 合并逐折收益
+    mean = np.nanmean(rc, axis=2)
+    std = np.nanstd(rc, axis=2, ddof=1)
+    worst = np.nanmin(rc, axis=2)
+    robust = mean - robust_k * std
+
+    flat = np.lexsort((-mean.ravel(), -worst.ravel(), -robust.ravel()))
+    li, si = np.unravel_index(flat, robust.shape)
+
+    keys = list(_V8_CONFIG_KEYS)
+    lcols = {("long_" + k): pl[k].to_numpy()[li] for k in keys}
+    scols = {("short_" + k): ps[k].to_numpy()[si] for k in keys}
+    pairs = pd.DataFrame({**lcols, **scols,
+                          "robust_combined": robust[li, si],
+                          "worst_combined": worst[li, si],
+                          "mean_combined": mean[li, si],
+                          "std_combined": std[li, si]})
+    for fi in range(rc.shape[2]):
+        pairs["fold%d_ret" % (fi + 1)] = rc[li, si, fi]
+    pairs = pairs.head(int(top_report)).reset_index(drop=True)
+
+    i, j = int(li[0]), int(si[0])
+    best = dict(long=pl.iloc[i].to_dict(), short=ps.iloc[j].to_dict(),
+                robust_combined=float(robust[i, j]), mean_combined=float(mean[i, j]),
+                worst_combined=float(worst[i, j]), std_combined=float(std[i, j]),
+                fold_returns=[float(v) for v in rc[i, j]])
+    return best, pairs, pl, ps
