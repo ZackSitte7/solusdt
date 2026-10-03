@@ -1,0 +1,1900 @@
+{
+ "config": {
+  "SYMBOL": "SOLUSDT",
+  "INTERVAL": "4h",
+  "SOURCE": "okx",
+  "DATA_START": "2021-10-01",
+  "HORIZON": 3,
+  "SELECT_ON": "oof",
+  "V3_ENFORCE_TP_GT_SL": true,
+  "V15_SELECT_RULE": "return_anchor_then_sharpe",
+  "V15_RET_DROP": 0.015,
+  "V15_LONG_REGIME_GRID": [
+   "none"
+  ],
+  "V15_LONG_DEDUP_GRID": [
+   0.8,
+   0.85,
+   0.9,
+   0.95,
+   0.97,
+   0.99
+  ],
+  "V15_LONG_THR_GRID": [
+   0.3,
+   0.4,
+   0.5,
+   0.6,
+   0.7,
+   0.8
+  ],
+  "V15_LONG_TP_GRID": [
+   2.0,
+   2.5,
+   3.0,
+   4.0,
+   5.0,
+   6.0,
+   8.0,
+   10.0,
+   12.0
+  ],
+  "V15_LONG_SL_GRID": [
+   1.0,
+   1.5,
+   2.0,
+   2.5,
+   3.0
+  ],
+  "V15_LONG_HOLD_GRID": [
+   12,
+   24,
+   36,
+   48,
+   72
+  ],
+  "V15_LONG_MODEL_GRID": [
+   "base",
+   "shallow",
+   "deep_slow",
+   "deep_reg",
+   "smooth",
+   "deep_reg2",
+   "mid_reg"
+  ],
+  "V14_LONG_TREND_FACTORS": [
+   "eff_ratio_20",
+   "eff_ratio_50",
+   "trend_qual_20",
+   "trend_qual_50",
+   "mtf_trend_align",
+   "ma_slope_accel",
+   "adx_slope_14"
+  ],
+  "V4_MAX_VIF": 10.0,
+  "V4_MIN_FACTORS": 5,
+  "V5_REGIME_GRID": [
+   "none",
+   "sma100",
+   "sma200",
+   "sma200_slope"
+  ],
+  "V5_REGIME_MA": {
+   "sma100": 100,
+   "sma200": 200,
+   "sma200_slope": 200
+  },
+  "OBJECTIVE_PRIMARY": "total_return",
+  "OBJECTIVE_SECONDARY": "sharpe",
+  "OOF_DEDUP_CORR_GRID": [
+   0.8,
+   0.85,
+   0.9,
+   0.95
+  ],
+  "EXEC_THR_GRID": [
+   0.4,
+   0.5,
+   0.6,
+   0.7,
+   0.8
+  ],
+  "TP_ATR_GRID": [
+   1.0,
+   1.5,
+   2.0,
+   2.5,
+   3.0,
+   4.0
+  ],
+  "SL_ATR_GRID": [
+   0.5,
+   0.75,
+   1.0,
+   1.5,
+   2.0,
+   2.5
+  ],
+  "OOF_HOLD_GRID": [
+   6,
+   12,
+   24
+  ],
+  "FEE_RATE": 0.0005,
+  "SLIP_RATE": 0.0,
+  "INIT_CAPITAL": 1000.0,
+  "TRADE_NOTIONAL": 100.0
+ },
+ "sides": {
+  "long": {
+   "model_name": "shallow",
+   "factors": [
+    "shooting_20",
+    "ret_skew_20",
+    "atr_z_20",
+    "doji_20",
+    "vol_ratio_5_20",
+    "range_ratio",
+    "rv_ratio_6_24",
+    "rv_ratio_12_48",
+    "atr_ratio_chg",
+    "vratio_12_48",
+    "up_mom_12",
+    "higher_high_20",
+    "rsi_bull_z_50",
+    "ma_align",
+    "vol_ma_ratio",
+    "mtf_trend_align",
+    "bb_width_20",
+    "bb_width_chg",
+    "break_sup_20",
+    "ret_kurt_20",
+    "aroon_dn_25",
+    "vol_z_20",
+    "mfi_14",
+    "bb_pos_20",
+    "gap_up_20",
+    "higher_low_20",
+    "pos_in_range_100",
+    "up_eff_20",
+    "rv_50",
+    "ret_12",
+    "trend_qual_20",
+    "donchian_width_50",
+    "amihud_20",
+    "ma_slope_100",
+    "vol_price_corr_20",
+    "upper_shadow_ma5",
+    "ret_48",
+    "ma_slope_accel",
+    "dn_mom_12"
+   ],
+   "regime_rule": "none",
+   "frozen_params": {
+    "dedup": 0.97,
+    "thr_q": 0.3,
+    "thr_abs": 0.0072654627941562714,
+    "tp_mult": 10.0,
+    "sl_mult": 2.0,
+    "max_hold": 72
+   },
+   "oof_metrics": {
+    "n": 32.0,
+    "sharpe": 9.639640466534923,
+    "total_return": 0.09477729277325109,
+    "calmar": 5.8557813039791835,
+    "max_drawdown": -0.021935579312813647,
+    "win_rate": 0.40625,
+    "payoff": 3.0141948657710773,
+    "tp_rate": 0.15625
+   },
+   "metrics": {
+    "train": {
+     "n_trades": 145.0,
+     "win_rate": 0.3931034482758621,
+     "avg_win": 19.376460704333436,
+     "avg_loss": -6.107658097487545,
+     "payoff_ratio": 3.1724861469086103,
+     "profit_factor": 2.054905799702168,
+     "avg_ret": 0.03910236879780014,
+     "total_pnl": 566.9843475681018,
+     "avg_bars": 41.13793103448276,
+     "tp_rate": 0.16551724137931034,
+     "sl_rate": 0.5517241379310345,
+     "timeout_rate": 0.2827586206896552,
+     "final_equity": 1571.7303158002371,
+     "total_return": 0.5717303158002371,
+     "sharpe": 8.809337760323674,
+     "calmar": 2.6891257119321117,
+     "max_drawdown": -0.05132724729780691
+    },
+    "oof": {
+     "n_trades": 32.0,
+     "win_rate": 0.40625,
+     "avg_win": 14.130718123953034,
+     "avg_loss": -4.68805726013941,
+     "payoff_ratio": 3.0141948657710773,
+     "profit_factor": 2.0623438555275793,
+     "avg_ret": 0.029570702396481446,
+     "total_pnl": 94.6262476687406,
+     "avg_bars": 39.03125,
+     "tp_rate": 0.15625,
+     "sl_rate": 0.5625,
+     "timeout_rate": 0.28125,
+     "final_equity": 1094.777292773251,
+     "total_return": 0.09477729277325109,
+     "sharpe": 9.639640466534923,
+     "calmar": 5.8557813039791835,
+     "max_drawdown": -0.021935579312813647
+    },
+    "ooc": {
+     "n_trades": 41.0,
+     "win_rate": 0.3170731707317073,
+     "avg_win": 9.981327291130627,
+     "avg_loss": -4.172059010378413,
+     "payoff_ratio": 2.392422366582323,
+     "profit_factor": 1.110767527341793,
+     "avg_ret": 0.0031560006083177082,
+     "total_pnl": 12.939602494102601,
+     "avg_bars": 31.804878048780488,
+     "tp_rate": 0.12195121951219512,
+     "sl_rate": 0.6341463414634146,
+     "timeout_rate": 0.24390243902439024,
+     "final_equity": 1012.9396024941026,
+     "total_return": 0.012939602494102642,
+     "sharpe": 0.9357163116020143,
+     "calmar": 0.4014572374411305,
+     "max_drawdown": -0.04308108774663377
+    }
+   }
+  },
+  "short": {
+   "model_name": "shallow",
+   "factors": [
+    "hour_sin",
+    "autocorr_1_20",
+    "gap",
+    "lower_high_20",
+    "vortex_neg_14",
+    "mom_accel",
+    "autocorr_5_50",
+    "dist_low_50",
+    "lower_shadow_ma5",
+    "gap_down_20",
+    "ret_1",
+    "lower_low_20",
+    "close_pos_in_bar",
+    "body_ratio",
+    "aroon_osc_25",
+    "dow_cos",
+    "dist_high_50",
+    "bars_since_high_50"
+   ],
+   "regime_rule": "sma200_slope",
+   "frozen_params": {
+    "dedup": 0.85,
+    "thr_q": 0.7,
+    "thr_abs": 0.0535471002083522,
+    "tp_mult": 2.5,
+    "sl_mult": 0.75,
+    "max_hold": 6
+   },
+   "oof_metrics": {
+    "n": 113.0,
+    "sharpe": 2.8114685353630278,
+    "total_return": 0.06408391932690183,
+    "calmar": 4.043887048101994,
+    "max_drawdown": -0.021372362144643664,
+    "win_rate": 0.415929203539823,
+    "payoff": 2.0825843283157415,
+    "tp_rate": 0.19469026548672566
+   },
+   "metrics": {
+    "train": {
+     "n_trades": 574.0,
+     "win_rate": 0.38501742160278746,
+     "avg_win": 4.76059188429672,
+     "avg_loss": -2.540540196058498,
+     "payoff_ratio": 1.8738502510932535,
+     "profit_factor": 1.173147041052717,
+     "avg_ret": 0.002705228523012639,
+     "total_pnl": 155.2801172209255,
+     "avg_bars": 4.214285714285714,
+     "tp_rate": 0.14634146341463414,
+     "sl_rate": 0.5696864111498258,
+     "timeout_rate": 0.28397212543554007,
+     "final_equity": 1156.7730294166543,
+     "total_return": 0.15677302941665427,
+     "sharpe": 1.1055140307333622,
+     "calmar": 0.9080834848459429,
+     "max_drawdown": -0.046825639933255614
+    },
+    "oof": {
+     "n_trades": 113.0,
+     "win_rate": 0.415929203539823,
+     "avg_win": 4.109152743744982,
+     "avg_loss": -1.9731026916293937,
+     "payoff_ratio": 2.0825843283157415,
+     "profit_factor": 1.483052476224846,
+     "avg_ret": 0.005566849673316298,
+     "total_pnl": 62.90540130847418,
+     "avg_bars": 4.176991150442478,
+     "tp_rate": 0.19469026548672566,
+     "sl_rate": 0.5398230088495575,
+     "timeout_rate": 0.26548672566371684,
+     "final_equity": 1064.0839193269019,
+     "total_return": 0.06408391932690183,
+     "sharpe": 2.8114685353630278,
+     "calmar": 4.043887048101994,
+     "max_drawdown": -0.021372362144643664
+    },
+    "ooc": {
+     "n_trades": 115.0,
+     "win_rate": 0.33043478260869563,
+     "avg_win": 3.703901784364336,
+     "avg_loss": -1.565985143751776,
+     "payoff_ratio": 2.3652215342800473,
+     "profit_factor": 1.1672521857485947,
+     "avg_ret": 0.0017536879771267858,
+     "total_pnl": 20.16741173695803,
+     "avg_bars": 4.0,
+     "tp_rate": 0.10434782608695652,
+     "sl_rate": 0.6173913043478261,
+     "timeout_rate": 0.2782608695652174,
+     "final_equity": 1020.167411736958,
+     "total_return": 0.020167411736957908,
+     "sharpe": 1.027605457113743,
+     "calmar": 1.0877004888933814,
+     "max_drawdown": -0.024812151453080022
+    }
+   }
+  }
+ },
+ "segments": [
+  {
+   "side": "long",
+   "seg": "train",
+   "regime": "none",
+   "total_return": 0.5717303158002371,
+   "sharpe": 8.809337760323674,
+   "calmar": 2.6891257119321117,
+   "max_drawdown": -0.05132724729780691,
+   "win_rate": 0.3931034482758621,
+   "payoff_ratio": 3.1724861469086103,
+   "n_trades": 145.0,
+   "tp_rate": 0.16551724137931034,
+   "sl_rate": 0.5517241379310345,
+   "timeout_rate": 0.2827586206896552
+  },
+  {
+   "side": "long",
+   "seg": "oof",
+   "regime": "none",
+   "total_return": 0.09477729277325109,
+   "sharpe": 9.639640466534923,
+   "calmar": 5.8557813039791835,
+   "max_drawdown": -0.021935579312813647,
+   "win_rate": 0.40625,
+   "payoff_ratio": 3.0141948657710773,
+   "n_trades": 32.0,
+   "tp_rate": 0.15625,
+   "sl_rate": 0.5625,
+   "timeout_rate": 0.28125
+  },
+  {
+   "side": "long",
+   "seg": "ooc",
+   "regime": "none",
+   "total_return": 0.012939602494102642,
+   "sharpe": 0.9357163116020143,
+   "calmar": 0.4014572374411305,
+   "max_drawdown": -0.04308108774663377,
+   "win_rate": 0.3170731707317073,
+   "payoff_ratio": 2.392422366582323,
+   "n_trades": 41.0,
+   "tp_rate": 0.12195121951219512,
+   "sl_rate": 0.6341463414634146,
+   "timeout_rate": 0.24390243902439024
+  },
+  {
+   "side": "short",
+   "seg": "train",
+   "regime": "sma200_slope",
+   "total_return": 0.15677302941665427,
+   "sharpe": 1.1055140307333622,
+   "calmar": 0.9080834848459429,
+   "max_drawdown": -0.046825639933255614,
+   "win_rate": 0.38501742160278746,
+   "payoff_ratio": 1.8738502510932535,
+   "n_trades": 574.0,
+   "tp_rate": 0.14634146341463414,
+   "sl_rate": 0.5696864111498258,
+   "timeout_rate": 0.28397212543554007
+  },
+  {
+   "side": "short",
+   "seg": "oof",
+   "regime": "sma200_slope",
+   "total_return": 0.06408391932690183,
+   "sharpe": 2.8114685353630278,
+   "calmar": 4.043887048101994,
+   "max_drawdown": -0.021372362144643664,
+   "win_rate": 0.415929203539823,
+   "payoff_ratio": 2.0825843283157415,
+   "n_trades": 113.0,
+   "tp_rate": 0.19469026548672566,
+   "sl_rate": 0.5398230088495575,
+   "timeout_rate": 0.26548672566371684
+  },
+  {
+   "side": "short",
+   "seg": "ooc",
+   "regime": "sma200_slope",
+   "total_return": 0.020167411736957908,
+   "sharpe": 1.027605457113743,
+   "calmar": 1.0877004888933814,
+   "max_drawdown": -0.024812151453080022,
+   "win_rate": 0.33043478260869563,
+   "payoff_ratio": 2.3652215342800473,
+   "n_trades": 115.0,
+   "tp_rate": 0.10434782608695652,
+   "sl_rate": 0.6173913043478261,
+   "timeout_rate": 0.2782608695652174
+  }
+ ],
+ "prune_log": {
+  "long|0.8": {
+   "before": [
+    "shooting_20",
+    "ret_skew_20",
+    "rv_6",
+    "atr_z_20",
+    "up_vol_20",
+    "doji_20",
+    "vol_ratio_5_20",
+    "range_ratio",
+    "rv_ratio_12_48",
+    "atr_ratio_chg",
+    "vratio_12_48",
+    "up_mom_12",
+    "kc_width_20",
+    "higher_high_20",
+    "rsi_bull_z_50",
+    "ma_align",
+    "vol_ma_ratio",
+    "mtf_trend_align",
+    "bb_width_20",
+    "bb_width_chg",
+    "pos_in_range_50",
+    "ret_kurt_20",
+    "aroon_dn_25",
+    "vortex_diff_14",
+    "vol_z_20",
+    "ret_24",
+    "gap_up_20",
+    "higher_low_20",
+    "up_eff_20",
+    "amihud_20",
+    "ma_slope_100",
+    "macd_hist",
+    "vol_price_corr_20",
+    "upper_shadow_ma5",
+    "ret_48",
+    "ma_slope_accel",
+    "dn_mom_12"
+   ],
+   "after": [
+    "shooting_20",
+    "ret_skew_20",
+    "rv_6",
+    "atr_z_20",
+    "up_vol_20",
+    "doji_20",
+    "vol_ratio_5_20",
+    "range_ratio",
+    "rv_ratio_12_48",
+    "atr_ratio_chg",
+    "vratio_12_48",
+    "higher_high_20",
+    "rsi_bull_z_50",
+    "ma_align",
+    "vol_ma_ratio",
+    "mtf_trend_align",
+    "bb_width_20",
+    "bb_width_chg",
+    "pos_in_range_50",
+    "ret_kurt_20",
+    "aroon_dn_25",
+    "vortex_diff_14",
+    "vol_z_20",
+    "ret_24",
+    "gap_up_20",
+    "higher_low_20",
+    "up_eff_20",
+    "amihud_20",
+    "ma_slope_100",
+    "macd_hist",
+    "vol_price_corr_20",
+    "upper_shadow_ma5",
+    "ret_48",
+    "ma_slope_accel"
+   ],
+   "dropped": [
+    {
+     "factor": "kc_width_20",
+     "vif": 16.691849782102107,
+     "reason": "vif"
+    },
+    {
+     "factor": "dn_mom_12",
+     "vif": 13.130518399641657,
+     "reason": "vif"
+    },
+    {
+     "factor": "up_mom_12",
+     "vif": 11.061888178486367,
+     "reason": "vif"
+    }
+   ],
+   "max_vif_before": 16.691849782102107,
+   "max_vif_after": 8.151302162621658
+  },
+  "long|0.85": {
+   "before": [
+    "shooting_20",
+    "ret_skew_20",
+    "rv_6",
+    "atr_z_20",
+    "up_vol_20",
+    "doji_20",
+    "vol_ratio_5_20",
+    "range_ratio",
+    "rv_ratio_12_48",
+    "vol_asym_20",
+    "atr_ratio_chg",
+    "vratio_12_48",
+    "up_mom_12",
+    "kc_width_20",
+    "higher_high_20",
+    "rsi_bull_z_50",
+    "ma_align",
+    "vol_ma_ratio",
+    "mtf_trend_align",
+    "bb_width_20",
+    "bb_width_chg",
+    "pos_in_range_50",
+    "break_sup_20",
+    "ret_kurt_20",
+    "aroon_dn_25",
+    "vortex_diff_14",
+    "vol_z_20",
+    "ret_24",
+    "ret_vol_adj_20",
+    "gap_up_20",
+    "higher_low_20",
+    "pos_in_range_100",
+    "lr_slope_20",
+    "pos_in_range_20",
+    "ma_ratio_20",
+    "macd_signal",
+    "donchian_width_50",
+    "amihud_20",
+    "ma_slope_100",
+    "macd_hist",
+    "vol_price_corr_20",
+    "upper_shadow_ma5",
+    "roc_48",
+    "ma_slope_accel",
+    "dn_mom_12"
+   ],
+   "after": [
+    "shooting_20",
+    "ret_skew_20",
+    "rv_6",
+    "atr_z_20",
+    "up_vol_20",
+    "doji_20",
+    "vol_ratio_5_20",
+    "range_ratio",
+    "rv_ratio_12_48",
+    "atr_ratio_chg",
+    "vratio_12_48",
+    "higher_high_20",
+    "rsi_bull_z_50",
+    "ma_align",
+    "vol_ma_ratio",
+    "mtf_trend_align",
+    "bb_width_20",
+    "bb_width_chg",
+    "ret_kurt_20",
+    "aroon_dn_25",
+    "vortex_diff_14",
+    "vol_z_20",
+    "ret_24",
+    "gap_up_20",
+    "higher_low_20",
+    "pos_in_range_100",
+    "lr_slope_20",
+    "pos_in_range_20",
+    "donchian_width_50",
+    "amihud_20",
+    "ma_slope_100",
+    "macd_hist",
+    "vol_price_corr_20",
+    "upper_shadow_ma5",
+    "roc_48",
+    "ma_slope_accel"
+   ],
+   "dropped": [
+    {
+     "factor": "vol_asym_20",
+     "vif": 46.47217561886301,
+     "reason": "vif"
+    },
+    {
+     "factor": "ma_ratio_20",
+     "vif": 36.70833741106547,
+     "reason": "vif"
+    },
+    {
+     "factor": "macd_signal",
+     "vif": 34.03922128405054,
+     "reason": "vif"
+    },
+    {
+     "factor": "kc_width_20",
+     "vif": 17.796044695255706,
+     "reason": "vif"
+    },
+    {
+     "factor": "dn_mom_12",
+     "vif": 15.116398546839987,
+     "reason": "vif"
+    },
+    {
+     "factor": "break_sup_20",
+     "vif": 11.886598101667193,
+     "reason": "vif"
+    },
+    {
+     "factor": "ret_vol_adj_20",
+     "vif": 11.740640434696974,
+     "reason": "vif"
+    },
+    {
+     "factor": "up_mom_12",
+     "vif": 11.050051781932401,
+     "reason": "vif"
+    },
+    {
+     "factor": "pos_in_range_50",
+     "vif": 10.849752917058767,
+     "reason": "vif"
+    }
+   ],
+   "max_vif_before": 46.47217561886301,
+   "max_vif_after": 8.437324312895885
+  },
+  "long|0.9": {
+   "before": [
+    "shooting_20",
+    "ret_skew_20",
+    "rv_6",
+    "atr_z_20",
+    "up_vol_20",
+    "doji_20",
+    "vol_ratio_5_20",
+    "range_ratio",
+    "rv_ratio_6_24",
+    "rv_12",
+    "rv_ratio_12_48",
+    "vol_asym_20",
+    "atr_ratio_chg",
+    "vratio_12_48",
+    "up_mom_12",
+    "kc_width_20",
+    "higher_high_20",
+    "rsi_bull_z_50",
+    "ma_align",
+    "vol_ma_ratio",
+    "mtf_trend_align",
+    "bb_width_20",
+    "bb_width_chg",
+    "pos_in_range_50",
+    "break_sup_20",
+    "ret_kurt_20",
+    "eff_ratio_20",
+    "aroon_dn_25",
+    "vortex_diff_14",
+    "vol_z_20",
+    "ret_24",
+    "mfi_14",
+    "kc_pos_20",
+    "gap_up_20",
+    "rsi_28",
+    "higher_low_20",
+    "pos_in_range_100",
+    "lr_slope_20",
+    "rv_50",
+    "pos_in_range_20",
+    "ret_12",
+    "macd_signal",
+    "trend_qual_20",
+    "donchian_width_50",
+    "amihud_20",
+    "ma_slope_100",
+    "macd_hist",
+    "vol_price_corr_20",
+    "upper_shadow_ma5",
+    "ret_48",
+    "ma_slope_accel",
+    "dn_mom_12"
+   ],
+   "after": [
+    "shooting_20",
+    "ret_skew_20",
+    "atr_z_20",
+    "up_vol_20",
+    "doji_20",
+    "vol_ratio_5_20",
+    "range_ratio",
+    "rv_ratio_6_24",
+    "rv_ratio_12_48",
+    "atr_ratio_chg",
+    "vratio_12_48",
+    "up_mom_12",
+    "higher_high_20",
+    "rsi_bull_z_50",
+    "ma_align",
+    "vol_ma_ratio",
+    "mtf_trend_align",
+    "bb_width_20",
+    "bb_width_chg",
+    "ret_kurt_20",
+    "aroon_dn_25",
+    "vol_z_20",
+    "ret_24",
+    "mfi_14",
+    "gap_up_20",
+    "higher_low_20",
+    "pos_in_range_100",
+    "lr_slope_20",
+    "pos_in_range_20",
+    "ret_12",
+    "donchian_width_50",
+    "amihud_20",
+    "ma_slope_100",
+    "vol_price_corr_20",
+    "upper_shadow_ma5",
+    "ret_48",
+    "ma_slope_accel",
+    "dn_mom_12"
+   ],
+   "dropped": [
+    {
+     "factor": "kc_pos_20",
+     "vif": 64.43542754730478,
+     "reason": "vif"
+    },
+    {
+     "factor": "rv_12",
+     "vif": 57.26723405861449,
+     "reason": "vif"
+    },
+    {
+     "factor": "vol_asym_20",
+     "vif": 39.44626524368783,
+     "reason": "vif"
+    },
+    {
+     "factor": "macd_signal",
+     "vif": 38.945229554368424,
+     "reason": "vif"
+    },
+    {
+     "factor": "rsi_28",
+     "vif": 29.47904051568295,
+     "reason": "vif"
+    },
+    {
+     "factor": "kc_width_20",
+     "vif": 22.411240264036252,
+     "reason": "vif"
+    },
+    {
+     "factor": "rv_6",
+     "vif": 15.219463533646977,
+     "reason": "vif"
+    },
+    {
+     "factor": "trend_qual_20",
+     "vif": 14.939935522080157,
+     "reason": "vif"
+    },
+    {
+     "factor": "eff_ratio_20",
+     "vif": 13.45936917023154,
+     "reason": "vif"
+    },
+    {
+     "factor": "vortex_diff_14",
+     "vif": 11.965496214721112,
+     "reason": "vif"
+    },
+    {
+     "factor": "break_sup_20",
+     "vif": 11.862483993716795,
+     "reason": "vif"
+    },
+    {
+     "factor": "macd_hist",
+     "vif": 11.431375993356468,
+     "reason": "vif"
+    },
+    {
+     "factor": "pos_in_range_50",
+     "vif": 10.912804124808323,
+     "reason": "vif"
+    },
+    {
+     "factor": "rv_50",
+     "vif": 10.053593356887365,
+     "reason": "vif"
+    }
+   ],
+   "max_vif_before": 64.43542754730478,
+   "max_vif_after": 8.72126263605333
+  },
+  "long|0.95": {
+   "before": [
+    "shooting_20",
+    "ret_skew_20",
+    "rv_6",
+    "atr_z_20",
+    "up_vol_20",
+    "doji_20",
+    "vol_ratio_5_20",
+    "range_ratio",
+    "rv_ratio_6_24",
+    "rv_12",
+    "rv_ratio_12_48",
+    "vol_asym_20",
+    "atr_ratio_chg",
+    "vratio_12_48",
+    "up_mom_12",
+    "kc_width_20",
+    "higher_high_20",
+    "rv_20",
+    "rsi_bull_z_50",
+    "ma_align",
+    "rs_vol_20",
+    "vol_ma_ratio",
+    "mtf_trend_align",
+    "bull_persist",
+    "bb_width_20",
+    "bb_width_chg",
+    "pos_in_range_50",
+    "break_sup_20",
+    "donchian_width_20",
+    "trend_strength_50",
+    "ret_kurt_20",
+    "eff_ratio_20",
+    "aroon_dn_25",
+    "vortex_diff_14",
+    "vol_z_20",
+    "ret_24",
+    "mfi_14",
+    "kc_pos_20",
+    "bb_pos_20",
+    "gap_up_20",
+    "higher_low_20",
+    "ma_ratio_50",
+    "pos_in_range_100",
+    "lr_slope_20",
+    "up_eff_20",
+    "rv_50",
+    "pos_in_range_20",
+    "ma_ratio_20",
+    "ret_12",
+    "macd",
+    "trend_qual_20",
+    "donchian_width_50",
+    "amihud_20",
+    "ma_slope_100",
+    "macd_hist",
+    "vol_price_corr_20",
+    "upper_shadow_ma5",
+    "ret_48",
+    "ma_ratio_200",
+    "ma_slope_accel",
+    "dn_mom_12"
+   ],
+   "after": [
+    "shooting_20",
+    "ret_skew_20",
+    "atr_z_20",
+    "doji_20",
+    "vol_ratio_5_20",
+    "range_ratio",
+    "rv_ratio_6_24",
+    "rv_ratio_12_48",
+    "atr_ratio_chg",
+    "vratio_12_48",
+    "up_mom_12",
+    "higher_high_20",
+    "rsi_bull_z_50",
+    "ma_align",
+    "rs_vol_20",
+    "vol_ma_ratio",
+    "mtf_trend_align",
+    "bb_width_20",
+    "bb_width_chg",
+    "ret_kurt_20",
+    "aroon_dn_25",
+    "vol_z_20",
+    "ret_24",
+    "mfi_14",
+    "bb_pos_20",
+    "gap_up_20",
+    "higher_low_20",
+    "pos_in_range_100",
+    "up_eff_20",
+    "rv_50",
+    "ret_12",
+    "trend_qual_20",
+    "donchian_width_50",
+    "amihud_20",
+    "ma_slope_100",
+    "vol_price_corr_20",
+    "upper_shadow_ma5",
+    "ret_48",
+    "ma_slope_accel",
+    "dn_mom_12"
+   ],
+   "dropped": [
+    {
+     "factor": "ma_ratio_20",
+     "vif": 134.6484624517303,
+     "reason": "vif"
+    },
+    {
+     "factor": "rv_20",
+     "vif": 84.21620269605178,
+     "reason": "vif"
+    },
+    {
+     "factor": "bull_persist",
+     "vif": 82.94196131885542,
+     "reason": "vif"
+    },
+    {
+     "factor": "ma_ratio_50",
+     "vif": 75.90332037103784,
+     "reason": "vif"
+    },
+    {
+     "factor": "kc_pos_20",
+     "vif": 67.34830850811737,
+     "reason": "vif"
+    },
+    {
+     "factor": "rv_12",
+     "vif": 61.06880763881809,
+     "reason": "vif"
+    },
+    {
+     "factor": "kc_width_20",
+     "vif": 50.01855711703814,
+     "reason": "vif"
+    },
+    {
+     "factor": "macd",
+     "vif": 46.43632793217812,
+     "reason": "vif"
+    },
+    {
+     "factor": "eff_ratio_20",
+     "vif": 41.84015633425433,
+     "reason": "vif"
+    },
+    {
+     "factor": "trend_strength_50",
+     "vif": 32.45653588379978,
+     "reason": "vif"
+    },
+    {
+     "factor": "donchian_width_20",
+     "vif": 30.121485877718083,
+     "reason": "vif"
+    },
+    {
+     "factor": "vol_asym_20",
+     "vif": 25.020605217860133,
+     "reason": "vif"
+    },
+    {
+     "factor": "pos_in_range_20",
+     "vif": 17.702205329397973,
+     "reason": "vif"
+    },
+    {
+     "factor": "up_vol_20",
+     "vif": 17.142602162643648,
+     "reason": "vif"
+    },
+    {
+     "factor": "lr_slope_20",
+     "vif": 14.576948909948017,
+     "reason": "vif"
+    },
+    {
+     "factor": "rv_6",
+     "vif": 13.716874761917104,
+     "reason": "vif"
+    },
+    {
+     "factor": "vortex_diff_14",
+     "vif": 12.821749478010943,
+     "reason": "vif"
+    },
+    {
+     "factor": "ma_ratio_200",
+     "vif": 12.028131588952032,
+     "reason": "vif"
+    },
+    {
+     "factor": "macd_hist",
+     "vif": 11.680338183153598,
+     "reason": "vif"
+    },
+    {
+     "factor": "break_sup_20",
+     "vif": 11.165220868798102,
+     "reason": "vif"
+    },
+    {
+     "factor": "pos_in_range_50",
+     "vif": 10.219335147026241,
+     "reason": "vif"
+    }
+   ],
+   "max_vif_before": 134.6484624517303,
+   "max_vif_after": 9.442051749233917
+  },
+  "long|0.97": {
+   "before": [
+    "shooting_20",
+    "ret_skew_20",
+    "rv_6",
+    "atr_z_20",
+    "up_vol_20",
+    "doji_20",
+    "vol_ratio_5_20",
+    "range_ratio",
+    "rv_ratio_6_24",
+    "rv_12",
+    "rv_ratio_12_48",
+    "vol_asym_20",
+    "atr_ratio_chg",
+    "vratio_12_48",
+    "up_mom_12",
+    "kc_width_20",
+    "higher_high_20",
+    "rv_20",
+    "rsi_bull_z_50",
+    "ma_align",
+    "parkinson_20",
+    "vol_ma_ratio",
+    "mtf_trend_align",
+    "bull_persist",
+    "bb_width_20",
+    "bb_width_chg",
+    "pos_in_range_50",
+    "break_sup_20",
+    "donchian_width_20",
+    "trend_strength_50",
+    "ret_kurt_20",
+    "eff_ratio_20",
+    "aroon_dn_25",
+    "vortex_diff_14",
+    "vol_z_20",
+    "ret_24",
+    "mfi_14",
+    "kc_pos_20",
+    "bb_pos_20",
+    "ma_slope_20",
+    "rsi_div",
+    "gap_up_20",
+    "rsi_28",
+    "higher_low_20",
+    "ma_ratio_50",
+    "pos_in_range_100",
+    "lr_slope_20",
+    "up_eff_20",
+    "rv_50",
+    "pos_in_range_20",
+    "ma_ratio_20",
+    "ret_12",
+    "macd",
+    "macd_signal",
+    "trend_qual_20",
+    "donchian_width_50",
+    "amihud_20",
+    "ma_slope_100",
+    "macd_hist",
+    "vol_price_corr_20",
+    "upper_shadow_ma5",
+    "ret_48",
+    "ma_ratio_200",
+    "ma_slope_accel",
+    "dn_mom_12"
+   ],
+   "after": [
+    "shooting_20",
+    "ret_skew_20",
+    "atr_z_20",
+    "doji_20",
+    "vol_ratio_5_20",
+    "range_ratio",
+    "rv_ratio_6_24",
+    "rv_ratio_12_48",
+    "atr_ratio_chg",
+    "vratio_12_48",
+    "up_mom_12",
+    "higher_high_20",
+    "rsi_bull_z_50",
+    "ma_align",
+    "vol_ma_ratio",
+    "mtf_trend_align",
+    "bb_width_20",
+    "bb_width_chg",
+    "break_sup_20",
+    "ret_kurt_20",
+    "aroon_dn_25",
+    "vol_z_20",
+    "mfi_14",
+    "bb_pos_20",
+    "gap_up_20",
+    "higher_low_20",
+    "pos_in_range_100",
+    "up_eff_20",
+    "rv_50",
+    "ret_12",
+    "trend_qual_20",
+    "donchian_width_50",
+    "amihud_20",
+    "ma_slope_100",
+    "vol_price_corr_20",
+    "upper_shadow_ma5",
+    "ret_48",
+    "ma_slope_accel",
+    "dn_mom_12"
+   ],
+   "dropped": [
+    {
+     "factor": "ma_ratio_20",
+     "vif": 169.64072897173688,
+     "reason": "vif"
+    },
+    {
+     "factor": "rv_20",
+     "vif": 123.30852800935759,
+     "reason": "vif"
+    },
+    {
+     "factor": "kc_pos_20",
+     "vif": 105.02604919309195,
+     "reason": "vif"
+    },
+    {
+     "factor": "trend_strength_50",
+     "vif": 86.708869076948,
+     "reason": "vif"
+    },
+    {
+     "factor": "bull_persist",
+     "vif": 82.38708968959226,
+     "reason": "vif"
+    },
+    {
+     "factor": "ma_slope_20",
+     "vif": 74.70051564154025,
+     "reason": "vif"
+    },
+    {
+     "factor": "ma_ratio_50",
+     "vif": 64.890952055036,
+     "reason": "vif"
+    },
+    {
+     "factor": "rv_12",
+     "vif": 61.214263241278985,
+     "reason": "vif"
+    },
+    {
+     "factor": "parkinson_20",
+     "vif": 56.11994468728004,
+     "reason": "vif"
+    },
+    {
+     "factor": "eff_ratio_20",
+     "vif": 45.55505591764037,
+     "reason": "vif"
+    },
+    {
+     "factor": "rsi_28",
+     "vif": 30.41886390849947,
+     "reason": "vif"
+    },
+    {
+     "factor": "kc_width_20",
+     "vif": 29.5087481562934,
+     "reason": "vif"
+    },
+    {
+     "factor": "rsi_div",
+     "vif": 28.27425381487646,
+     "reason": "vif"
+    },
+    {
+     "factor": "donchian_width_20",
+     "vif": 27.056769011369465,
+     "reason": "vif"
+    },
+    {
+     "factor": "vol_asym_20",
+     "vif": 24.38561341705016,
+     "reason": "vif"
+    },
+    {
+     "factor": "lr_slope_20",
+     "vif": 21.262679961740773,
+     "reason": "vif"
+    },
+    {
+     "factor": "pos_in_range_20",
+     "vif": 17.448123537138457,
+     "reason": "vif"
+    },
+    {
+     "factor": "rv_6",
+     "vif": 14.825810959198677,
+     "reason": "vif"
+    },
+    {
+     "factor": "vortex_diff_14",
+     "vif": 12.939310100575174,
+     "reason": "vif"
+    },
+    {
+     "factor": "ret_24",
+     "vif": 12.604938194948746,
+     "reason": "vif"
+    },
+    {
+     "factor": "up_vol_20",
+     "vif": 12.203824226284961,
+     "reason": "vif"
+    },
+    {
+     "factor": "ma_ratio_200",
+     "vif": 11.974314282893488,
+     "reason": "vif"
+    },
+    {
+     "factor": "macd_hist",
+     "vif": 10.818311510907467,
+     "reason": "vif"
+    },
+    {
+     "factor": "macd",
+     "vif": 160.05514604851484,
+     "reason": "vif"
+    },
+    {
+     "factor": "macd_signal",
+     "vif": 13.514460552200175,
+     "reason": "vif"
+    },
+    {
+     "factor": "pos_in_range_50",
+     "vif": 10.450145267764004,
+     "reason": "vif"
+    }
+   ],
+   "max_vif_before": 169.64072897173688,
+   "max_vif_after": 9.163241081324353
+  },
+  "long|0.99": {
+   "before": [
+    "shooting_20",
+    "ret_skew_20",
+    "rv_6",
+    "atr_z_20",
+    "up_vol_20",
+    "doji_20",
+    "vol_ratio_5_20",
+    "range_ratio",
+    "rv_ratio_6_24",
+    "rv_12",
+    "rv_ratio_12_48",
+    "vol_asym_20",
+    "atr_ratio_chg",
+    "vratio_12_48",
+    "up_mom_12",
+    "kc_width_20",
+    "higher_high_20",
+    "rv_20",
+    "rsi_bull_z_50",
+    "ma_align",
+    "parkinson_20",
+    "rs_vol_20",
+    "vol_ma_ratio",
+    "atr_ratio",
+    "rv_24",
+    "mtf_trend_align",
+    "bull_persist",
+    "bb_width_20",
+    "bb_width_chg",
+    "pos_in_range_50",
+    "break_sup_20",
+    "donchian_width_20",
+    "trend_strength_50",
+    "ret_kurt_20",
+    "eff_ratio_20",
+    "aroon_dn_25",
+    "vortex_diff_14",
+    "vol_z_20",
+    "ret_24",
+    "mfi_14",
+    "kc_pos_20",
+    "bb_pos_20",
+    "ma_slope_20",
+    "rsi_14",
+    "rsi_div",
+    "gap_up_20",
+    "cci_20",
+    "rsi_28",
+    "vortex_pos_14",
+    "higher_low_20",
+    "ma_ratio_50",
+    "pos_in_range_100",
+    "lr_slope_20",
+    "up_eff_20",
+    "rv_50",
+    "pos_in_range_20",
+    "ma_ratio_20",
+    "ret_12",
+    "macd",
+    "macd_signal",
+    "ema_ratio_9_21",
+    "trend_qual_20",
+    "donchian_width_50",
+    "amihud_20",
+    "ma_slope_100",
+    "macd_hist",
+    "vol_price_corr_20",
+    "vwap_dev_20",
+    "upper_shadow_ma5",
+    "ret_48",
+    "roc_48",
+    "ma_ratio_200",
+    "ma_slope_accel",
+    "dn_mom_12"
+   ],
+   "after": [
+    "shooting_20",
+    "ret_skew_20",
+    "atr_z_20",
+    "doji_20",
+    "vol_ratio_5_20",
+    "range_ratio",
+    "rv_ratio_6_24",
+    "rv_ratio_12_48",
+    "atr_ratio_chg",
+    "vratio_12_48",
+    "up_mom_12",
+    "higher_high_20",
+    "rsi_bull_z_50",
+    "ma_align",
+    "rs_vol_20",
+    "vol_ma_ratio",
+    "mtf_trend_align",
+    "bb_width_20",
+    "bb_width_chg",
+    "ret_kurt_20",
+    "aroon_dn_25",
+    "vol_z_20",
+    "mfi_14",
+    "gap_up_20",
+    "higher_low_20",
+    "pos_in_range_100",
+    "up_eff_20",
+    "pos_in_range_20",
+    "ret_12",
+    "trend_qual_20",
+    "donchian_width_50",
+    "amihud_20",
+    "ma_slope_100",
+    "vol_price_corr_20",
+    "upper_shadow_ma5",
+    "roc_48",
+    "ma_slope_accel",
+    "dn_mom_12"
+   ],
+   "dropped": [
+    {
+     "factor": "ema_ratio_9_21",
+     "vif": 26976.763030111535,
+     "reason": "vif"
+    },
+    {
+     "factor": "parkinson_20",
+     "vif": 665.3249086044821,
+     "reason": "vif"
+    },
+    {
+     "factor": "atr_ratio",
+     "vif": 609.8655062565987,
+     "reason": "vif"
+    },
+    {
+     "factor": "ret_48",
+     "vif": 291.2093743583476,
+     "reason": "vif"
+    },
+    {
+     "factor": "ma_ratio_20",
+     "vif": 232.4042333321278,
+     "reason": "vif"
+    },
+    {
+     "factor": "rv_20",
+     "vif": 124.26917905466154,
+     "reason": "vif"
+    },
+    {
+     "factor": "kc_pos_20",
+     "vif": 113.48076871379338,
+     "reason": "vif"
+    },
+    {
+     "factor": "ma_ratio_50",
+     "vif": 93.69404187550208,
+     "reason": "vif"
+    },
+    {
+     "factor": "vortex_diff_14",
+     "vif": 85.22389510656166,
+     "reason": "vif"
+    },
+    {
+     "factor": "bull_persist",
+     "vif": 82.79756493825371,
+     "reason": "vif"
+    },
+    {
+     "factor": "trend_strength_50",
+     "vif": 76.16240177524,
+     "reason": "vif"
+    },
+    {
+     "factor": "ma_slope_20",
+     "vif": 74.45203029888658,
+     "reason": "vif"
+    },
+    {
+     "factor": "bb_pos_20",
+     "vif": 69.96776740502067,
+     "reason": "vif"
+    },
+    {
+     "factor": "rv_12",
+     "vif": 62.28164934320172,
+     "reason": "vif"
+    },
+    {
+     "factor": "kc_width_20",
+     "vif": 50.842005581225045,
+     "reason": "vif"
+    },
+    {
+     "factor": "break_sup_20",
+     "vif": 47.961255450239115,
+     "reason": "vif"
+    },
+    {
+     "factor": "eff_ratio_20",
+     "vif": 46.88408782888002,
+     "reason": "vif"
+    },
+    {
+     "factor": "vol_asym_20",
+     "vif": 27.72041683211167,
+     "reason": "vif"
+    },
+    {
+     "factor": "rv_24",
+     "vif": 26.342204367036267,
+     "reason": "vif"
+    },
+    {
+     "factor": "donchian_width_20",
+     "vif": 25.05161573346108,
+     "reason": "vif"
+    },
+    {
+     "factor": "rsi_div",
+     "vif": 23.328470891047484,
+     "reason": "vif"
+    },
+    {
+     "factor": "rsi_14",
+     "vif": 162.17138086007517,
+     "reason": "vif"
+    },
+    {
+     "factor": "rsi_28",
+     "vif": 28.60089522664414,
+     "reason": "vif"
+    },
+    {
+     "factor": "lr_slope_20",
+     "vif": 21.14362886091772,
+     "reason": "vif"
+    },
+    {
+     "factor": "vwap_dev_20",
+     "vif": 17.379634416838936,
+     "reason": "vif"
+    },
+    {
+     "factor": "up_vol_20",
+     "vif": 16.571845169819195,
+     "reason": "vif"
+    },
+    {
+     "factor": "rv_6",
+     "vif": 13.888370167665345,
+     "reason": "vif"
+    },
+    {
+     "factor": "ret_24",
+     "vif": 12.342199343015308,
+     "reason": "vif"
+    },
+    {
+     "factor": "ma_ratio_200",
+     "vif": 11.926679831722314,
+     "reason": "vif"
+    },
+    {
+     "factor": "cci_20",
+     "vif": 11.428525959400822,
+     "reason": "vif"
+    },
+    {
+     "factor": "pos_in_range_50",
+     "vif": 11.031104794510803,
+     "reason": "vif"
+    },
+    {
+     "factor": "rv_50",
+     "vif": 10.52331294832794,
+     "reason": "vif"
+    },
+    {
+     "factor": "vortex_pos_14",
+     "vif": 10.379941080808932,
+     "reason": "vif"
+    },
+    {
+     "factor": "macd_hist",
+     "vif": 10.227900593324582,
+     "reason": "vif"
+    },
+    {
+     "factor": "macd",
+     "vif": 148.33312412615894,
+     "reason": "vif"
+    },
+    {
+     "factor": "macd_signal",
+     "vif": 10.456096384675515,
+     "reason": "vif"
+    }
+   ],
+   "max_vif_before": 26976.763030111535,
+   "max_vif_after": 7.427710786944888
+  },
+  "short|0.8": {
+   "before": [
+    "hour_sin",
+    "autocorr_1_20",
+    "gap",
+    "lower_high_20",
+    "vortex_neg_14",
+    "mom_accel",
+    "autocorr_5_50",
+    "dist_low_50",
+    "lower_shadow_ma5",
+    "gap_down_20",
+    "ret_1",
+    "lower_low_20",
+    "close_pos_in_bar",
+    "aroon_osc_25",
+    "dow_cos",
+    "dist_high_50",
+    "bars_since_high_50"
+   ],
+   "after": [
+    "hour_sin",
+    "autocorr_1_20",
+    "gap",
+    "lower_high_20",
+    "vortex_neg_14",
+    "mom_accel",
+    "autocorr_5_50",
+    "dist_low_50",
+    "lower_shadow_ma5",
+    "gap_down_20",
+    "ret_1",
+    "lower_low_20",
+    "close_pos_in_bar",
+    "aroon_osc_25",
+    "dow_cos",
+    "dist_high_50",
+    "bars_since_high_50"
+   ],
+   "dropped": [],
+   "max_vif_before": 2.867755575196633,
+   "max_vif_after": 2.867755575196633
+  },
+  "short|0.85": {
+   "before": [
+    "hour_sin",
+    "autocorr_1_20",
+    "gap",
+    "lower_high_20",
+    "vortex_neg_14",
+    "mom_accel",
+    "autocorr_5_50",
+    "dist_low_50",
+    "lower_shadow_ma5",
+    "gap_down_20",
+    "ret_1",
+    "lower_low_20",
+    "close_pos_in_bar",
+    "body_ratio",
+    "aroon_osc_25",
+    "dow_cos",
+    "dist_high_50",
+    "bars_since_high_50"
+   ],
+   "after": [
+    "hour_sin",
+    "autocorr_1_20",
+    "gap",
+    "lower_high_20",
+    "vortex_neg_14",
+    "mom_accel",
+    "autocorr_5_50",
+    "dist_low_50",
+    "lower_shadow_ma5",
+    "gap_down_20",
+    "ret_1",
+    "lower_low_20",
+    "close_pos_in_bar",
+    "body_ratio",
+    "aroon_osc_25",
+    "dow_cos",
+    "dist_high_50",
+    "bars_since_high_50"
+   ],
+   "dropped": [],
+   "max_vif_before": 6.022274339516865,
+   "max_vif_after": 6.022274339516865
+  },
+  "short|0.9": {
+   "before": [
+    "hour_sin",
+    "autocorr_1_20",
+    "gap",
+    "lower_high_20",
+    "bear_persist",
+    "vortex_neg_14",
+    "mom_accel",
+    "autocorr_5_50",
+    "dist_low_50",
+    "lower_shadow_ma5",
+    "gap_down_20",
+    "mom_asym_12",
+    "ret_6",
+    "ret_1",
+    "close_pos_in_bar",
+    "body_ratio",
+    "aroon_osc_25",
+    "dow_cos",
+    "dist_high_50",
+    "bars_since_high_50"
+   ],
+   "after": [
+    "hour_sin",
+    "autocorr_1_20",
+    "gap",
+    "lower_high_20",
+    "bear_persist",
+    "vortex_neg_14",
+    "mom_accel",
+    "autocorr_5_50",
+    "dist_low_50",
+    "lower_shadow_ma5",
+    "gap_down_20",
+    "mom_asym_12",
+    "ret_1",
+    "close_pos_in_bar",
+    "body_ratio",
+    "aroon_osc_25",
+    "dow_cos",
+    "dist_high_50",
+    "bars_since_high_50"
+   ],
+   "dropped": [
+    {
+     "factor": "ret_6",
+     "vif": 18.264865163422943,
+     "reason": "vif"
+    }
+   ],
+   "max_vif_before": 18.264865163422943,
+   "max_vif_after": 6.040650477662206
+  },
+  "short|0.95": {
+   "before": [
+    "hour_sin",
+    "autocorr_1_20",
+    "gap",
+    "lower_high_20",
+    "bear_persist",
+    "vortex_neg_14",
+    "mom_accel",
+    "autocorr_5_50",
+    "dist_low_50",
+    "lower_shadow_ma5",
+    "gap_down_20",
+    "mom_asym_12",
+    "ret_6",
+    "ret_1",
+    "lower_low_20",
+    "close_pos_in_bar",
+    "body_ratio",
+    "aroon_osc_25",
+    "dow_cos",
+    "dist_high_50",
+    "bars_since_high_50",
+    "ret1_z_20"
+   ],
+   "after": [
+    "hour_sin",
+    "autocorr_1_20",
+    "gap",
+    "lower_high_20",
+    "vortex_neg_14",
+    "mom_accel",
+    "autocorr_5_50",
+    "dist_low_50",
+    "lower_shadow_ma5",
+    "gap_down_20",
+    "mom_asym_12",
+    "ret_1",
+    "lower_low_20",
+    "close_pos_in_bar",
+    "body_ratio",
+    "aroon_osc_25",
+    "dow_cos",
+    "dist_high_50",
+    "bars_since_high_50",
+    "ret1_z_20"
+   ],
+   "dropped": [
+    {
+     "factor": "bear_persist",
+     "vif": 62.02997159442377,
+     "reason": "vif"
+    },
+    {
+     "factor": "ret_6",
+     "vif": 18.37482656987159,
+     "reason": "vif"
+    }
+   ],
+   "max_vif_before": 62.02997159442377,
+   "max_vif_after": 9.649383057106512
+  }
+ },
+ "consistency": {
+  "n_fail": 0,
+  "checks": [
+   {
+    "check": "数据起点对齐 DATA_START",
+    "pass": true,
+    "detail": "起点 2021-10-01 -> 首根 2021-10-01 00:00"
+   },
+   {
+    "check": "数据切分 70/15/15",
+    "pass": true,
+    "detail": "train 7659 / oof 1641 / ooc 1642"
+   },
+   {
+    "check": "三段严格时序不重叠",
+    "pass": true,
+    "detail": "train[0,7659) oof[7659,9300) ooc[9300,10942)"
+   },
+   {
+    "check": "选择只发生在 OOF(OOC 未被读取)",
+    "pass": true,
+    "detail": "选择段为 OOF[7659,9300); OOC[9300,10942) 全程未参与"
+   },
+   {
+    "check": "止盈/止损硬约束 tp > sl",
+    "pass": true,
+    "detail": "long tp=10.00>sl=2.00 | short tp=2.50>sl=0.75"
+   },
+   {
+    "check": "v15 long 门控冻结=none 且 tp 上界放开到 12(short 不变)",
+    "pass": true,
+    "detail": "long 门控=none(冻结网格 ['none']), long tp=10.0(网格上界 12.0), short 门控=sma200_slope(未改动)"
+   },
+   {
+    "check": "制度门控生效且与冻结评估一致",
+    "pass": true,
+    "detail": "long: rule=none, OOC 门控前信号 706 -> 门控后 706, 冻结复核偏差 0; short: rule=sma200_slope, OOC 门控前信号 1269 -> 门控后 493, 冻结复核偏差 0"
+   },
+   {
+    "check": "VIF 迭代剪枝(冻结集 VIF<=10 且为去冗余子集)",
+    "pass": true,
+    "detail": "long: 剪枝前65->后39, 最大VIF 169.64->9.16, 子集=True; short: 剪枝前18->后18, 最大VIF 6.02->6.02, 子集=True"
+   },
+   {
+    "check": "阈值由 OOF 冻结, 非 OOC 自身分位",
+    "pass": true,
+    "detail": "long: 冻结(OOF) +0.007265 vs OOC自身分位 +0.036659; short: 冻结(OOF) +0.053547 vs OOC自身分位 +0.024100"
+   },
+   {
+    "check": "OOF 冻结评估与网格最优一致",
+    "pass": true,
+    "detail": "long: 网格 9.48%/夏普9.64 vs 复评 9.48%/夏普9.64; short: 网格 6.41%/夏普2.81 vs 复评 6.41%/夏普2.81"
+   },
+   {
+    "check": "成本口径 = 单边 5bp / 双边 10bp",
+    "pass": true,
+    "detail": "逐笔复核 1020 笔, 不一致 0 笔"
+   },
+   {
+    "check": "资金口径 1000 本金 / 单笔 100",
+    "pass": true,
+    "detail": "INIT_CAPITAL=1000 TRADE_NOTIONAL=100"
+   },
+   {
+    "check": "信号 t 收盘 -> t+1 开盘成交(无未来函数)",
+    "pass": true,
+    "detail": "全部 1020 笔成交价 == open[entry_idx], 不一致 0 笔"
+   },
+   {
+    "check": "制度掩码仅用过去信息(截断后取值不变)",
+    "pass": true,
+    "detail": "规则: sma100, sma200, sma200_slope"
+   },
+   {
+    "check": "多空独立: 因子集/执行参数/制度规则各自冻结",
+    "pass": true,
+    "detail": "long(none, 39因子, tp=10.00,sl=2.00) | short(sma200_slope, 18因子, tp=2.50,sl=0.75)"
+   },
+   {
+    "check": "v15 收益锚+夏普择优可复现(收益让步 <= 0.0150 内取夏普最高)",
+    "pass": true,
+    "detail": "long: 收益锚 +0.0948, 让步带(+0.0798)内最高夏普 +9.640, 选中 收益 +0.0948/夏普 +9.640; short: 收益锚 +0.0641, 让步带(+0.0491)内最高夏普 +2.811, 选中 收益 +0.0641/夏普 +2.811"
+   }
+  ]
+ }
+}

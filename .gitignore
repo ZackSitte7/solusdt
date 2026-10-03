@@ -48,6 +48,13 @@ reports/
 # 且可由 run_backtest_v8.py / run_backtest_v9.py 重新生成, 故原文件不入库。
 reports/**/selection_folds_*.csv
 
+# ---- 出库: v15 实验的"原始网格转储"(单文件 29~83MB, 可由 tools/exp_*.py 重新生成) ----
+# exp_gate_raw.csv(78MB) / v15_gate_grid.csv(83MB) / v15_tpext_grid.csv(29MB) —— 逐 (门控×模型×执行)
+# 的全量明细; 汇总结论已随 *_summary.csv 入库, 全量明细不入库。
+reports/**/exp_gate_raw.csv
+reports/**/v15_gate_grid.csv
+reports/**/v15_tpext_grid.csv
+
 # ---- 入库: 上述大文件的分片 ----
 # 由 tools/shards.py 按行边界切成 partNN(每片 <=90MiB, 每片重复表头可独立读取),
 # 附 MANIFEST.json(逐片 sha256/行数)可校验与还原。还原: tools/shards.py merge

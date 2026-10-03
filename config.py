@@ -480,3 +480,25 @@ V14_LONG_MODEL_GRID = (
 )
 V14_RET_DROP = 0.015            # 同 v13: 允许让出的 OOF 收益上限(绝对值, 1.5 个百分点)
 V14_OUT_DIR = "v14"             # 产出目录 reports/v14
+
+# ================================================================ v15: 放开 long 止盈上限 + 冻结 long 门控
+# 入口脚本 run_backtest_v15.py。基线 = v14。依据 v14 的 OOF 归因 + 两组 OOF 实验
+# (tools/exp_v15_trendgate.py / tools/exp_v15_tp_ext.py), 结论逐条对症:
+#   1. **趋势门控无效**: long 从「价在均线上/下」扩到 ADX/效率比/趋势质量等 9 种门控后,
+#      各门控在 OOF 上的最优收益都低于「不门控(none)」 -> long 的门控**冻结为 none**,
+#      不再作为 long 的可调旋钮(趋势信息仍由 v14 的趋势类因子承载)。
+#   2. **真正的瓶颈在执行层**: v14 的 tp 网格上界 6.0 被 4 个制度一致顶到 -> tp 是"被空间截断"
+#      而非"被数据选优"。v15 把 long 的 tp 网格外扩到 12.0(同时放开 tp>sl 下的 sl 下界到 1.0)。
+#      放开后 long 的 OOF 收益 +9.18% -> +9.48%、夏普 8.59 -> 9.64, 选中解为 tp=10/sl=2/hold=72。
+# 选优规则、成本、资金、切分、标签、VIF 纪律与 v14 **逐位一致**(收益锚 + 夏普择优, 让步带同 v14);
+# **short 逐位不变**(仍用 v13/v14 口径与网格); OOC 全程只观察。
+V15_LONG_REGIME_GRID = ("none",)     # long 门控冻结(实验: 任一门控都不提升 OOF 收益)
+V15_LONG_DEDUP_GRID = (0.80, 0.85, 0.90, 0.95, 0.97, 0.99)
+V15_LONG_THR_GRID = (0.3, 0.4, 0.5, 0.6, 0.7, 0.8)
+V15_LONG_TP_GRID = (2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0, 12.0)   # 上界 6.0 -> 12.0
+V15_LONG_SL_GRID = (1.0, 1.5, 2.0, 2.5, 3.0)
+V15_LONG_HOLD_GRID = (12, 24, 36, 48, 72)
+V15_LONG_MODEL_GRID = V14_LONG_MODEL_GRID     # 模型候选沿用 v14(7 个), 便于对照
+V15_LONG_FACTORS = tuple(V13_LONG_FACTORS) + tuple(V14_LONG_TREND_FACTORS)  # long 专用因子(v14 口径)
+V15_RET_DROP = V14_RET_DROP          # 选优让步带同 v14(1.5 个百分点)
+V15_OUT_DIR = "v15"                  # 产出目录 reports/v15
