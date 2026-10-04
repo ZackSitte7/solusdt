@@ -1,0 +1,547 @@
+{
+ "config": {
+  "SYMBOL": "SOLUSDT",
+  "INTERVAL": "4h",
+  "SOURCE": "okx",
+  "DATA_START": "2021-10-01",
+  "HORIZON": 3,
+  "SCHEME": "rolling_walk_forward",
+  "V18_TRAIN_BARS": 4380,
+  "V18_VAL_BARS": 1095,
+  "V18_TEST_BARS": 1095,
+  "V18_N_STEPS": 5,
+  "V18_RET_DROP": 0.015,
+  "SELECT_ON": "val(step)",
+  "TEST_IS_PURE_OOS": true,
+  "V15_LONG_REGIME_GRID": [
+   "none"
+  ],
+  "V15_LONG_TP_GRID": [
+   2.0,
+   2.5,
+   3.0,
+   4.0,
+   5.0,
+   6.0,
+   8.0,
+   10.0,
+   12.0
+  ],
+  "V5_REGIME_GRID": [
+   "none",
+   "sma100",
+   "sma200",
+   "sma200_slope"
+  ],
+  "FEE_RATE": 0.0005,
+  "SLIP_RATE": 0.0,
+  "INIT_CAPITAL": 1000.0,
+  "TRADE_NOTIONAL": 100.0,
+  "V4_MAX_VIF": 10.0,
+  "V4_MIN_FACTORS": 5
+ },
+ "windows": [
+  {
+   "step": 0,
+   "train": [
+    0,
+    4372
+   ],
+   "val": [
+    4372,
+    5467
+   ],
+   "test": [
+    5467,
+    6562
+   ]
+  },
+  {
+   "step": 1,
+   "train": [
+    1087,
+    5467
+   ],
+   "val": [
+    5467,
+    6562
+   ],
+   "test": [
+    6562,
+    7657
+   ]
+  },
+  {
+   "step": 2,
+   "train": [
+    2182,
+    6562
+   ],
+   "val": [
+    6562,
+    7657
+   ],
+   "test": [
+    7657,
+    8752
+   ]
+  },
+  {
+   "step": 3,
+   "train": [
+    3277,
+    7657
+   ],
+   "val": [
+    7657,
+    8752
+   ],
+   "test": [
+    8752,
+    9847
+   ]
+  },
+  {
+   "step": 4,
+   "train": [
+    4372,
+    8752
+   ],
+   "val": [
+    8752,
+    9847
+   ],
+   "test": [
+    9847,
+    10942
+   ]
+  }
+ ],
+ "oos": [
+  5467,
+  10942
+ ],
+ "steps": [
+  {
+   "step": 0,
+   "side": "long",
+   "test_lo": 5467,
+   "test_hi": 6562,
+   "test_start": "2024-03-31",
+   "test_end": "2024-09-30",
+   "regime": "none",
+   "dedup": 0.95,
+   "n_factors": 29,
+   "model": "shallow",
+   "thr_q": 0.6,
+   "thr_abs": -0.0544123215,
+   "tp_mult": 12.0,
+   "sl_mult": 2.0,
+   "max_hold": 72,
+   "val_return": 0.3054821497,
+   "val_sharpe": 26.9478292213,
+   "val_n": 22,
+   "val_anchor": 0.3054821497,
+   "test_return": -0.0259557188,
+   "test_sharpe": -2.911368869,
+   "test_n": 28,
+   "test_win": 0.2142857143,
+   "test_payoff": 2.8544297178,
+   "test_mdd": -0.0383886533,
+   "bench": -0.2198801199
+  },
+  {
+   "step": 0,
+   "side": "short",
+   "test_lo": 5467,
+   "test_hi": 6562,
+   "test_start": "2024-03-31",
+   "test_end": "2024-09-30",
+   "regime": "sma100",
+   "dedup": 0.9,
+   "n_factors": 28,
+   "model": "shallow",
+   "thr_q": 0.4,
+   "thr_abs": -0.059165679,
+   "tp_mult": 2.0,
+   "sl_mult": 0.5,
+   "max_hold": 12,
+   "val_return": 0.0115061551,
+   "val_sharpe": 1.0164975984,
+   "val_n": 37,
+   "val_anchor": 0.0115061551,
+   "test_return": -0.0024974948,
+   "test_sharpe": -0.1358094314,
+   "test_n": 98,
+   "test_win": 0.2346938776,
+   "test_payoff": 3.1959273536,
+   "test_mdd": -0.0271343185,
+   "bench": -0.2198801199
+  },
+  {
+   "step": 1,
+   "side": "long",
+   "test_lo": 6562,
+   "test_hi": 7657,
+   "test_start": "2024-09-30",
+   "test_end": "2025-03-31",
+   "regime": "none",
+   "dedup": 0.9,
+   "n_factors": 41,
+   "model": "mid_reg",
+   "thr_q": 0.3,
+   "thr_abs": 0.0235667178,
+   "tp_mult": 5.0,
+   "sl_mult": 1.0,
+   "max_hold": 48,
+   "val_return": 0.044357753,
+   "val_sharpe": 3.7474231732,
+   "val_n": 51,
+   "val_anchor": 0.044357753,
+   "test_return": 0.0010050158,
+   "test_sharpe": 0.0787314211,
+   "test_n": 58,
+   "test_win": 0.224137931,
+   "test_payoff": 3.4850430683,
+   "test_mdd": -0.045816248,
+   "bench": -0.1917633559
+  },
+  {
+   "step": 1,
+   "side": "short",
+   "test_lo": 6562,
+   "test_hi": 7657,
+   "test_start": "2024-09-30",
+   "test_end": "2025-03-31",
+   "regime": "none",
+   "dedup": 0.8,
+   "n_factors": 22,
+   "model": "base",
+   "thr_q": 0.4,
+   "thr_abs": 0.0037893512,
+   "tp_mult": 4.0,
+   "sl_mult": 2.0,
+   "max_hold": 24,
+   "val_return": 0.0739583999,
+   "val_sharpe": 5.7089469723,
+   "val_n": 56,
+   "val_anchor": 0.0739583999,
+   "test_return": 0.0165786121,
+   "test_sharpe": 1.046346556,
+   "test_n": 52,
+   "test_win": 0.4423076923,
+   "test_payoff": 1.3753432662,
+   "test_mdd": -0.038756091,
+   "bench": -0.1917633559
+  },
+  {
+   "step": 2,
+   "side": "long",
+   "test_lo": 7657,
+   "test_hi": 8752,
+   "test_start": "2025-03-31",
+   "test_end": "2025-09-30",
+   "regime": "none",
+   "dedup": 0.85,
+   "n_factors": 38,
+   "model": "deep_reg2",
+   "thr_q": 0.3,
+   "thr_abs": 0.0517180945,
+   "tp_mult": 5.0,
+   "sl_mult": 3.0,
+   "max_hold": 12,
+   "val_return": 0.0571672561,
+   "val_sharpe": 4.5573554739,
+   "val_n": 43,
+   "val_anchor": 0.0571672561,
+   "test_return": 0.0607110454,
+   "test_sharpe": 6.1917333845,
+   "test_n": 49,
+   "test_win": 0.5102040816,
+   "test_payoff": 1.5958369974,
+   "test_mdd": -0.0214290732,
+   "bench": 0.6819415616
+  },
+  {
+   "step": 2,
+   "side": "short",
+   "test_lo": 7657,
+   "test_hi": 8752,
+   "test_start": "2025-03-31",
+   "test_end": "2025-09-30",
+   "regime": "none",
+   "dedup": 0.8,
+   "n_factors": 20,
+   "model": "base",
+   "thr_q": 0.8,
+   "thr_abs": 0.0776476909,
+   "tp_mult": 3.0,
+   "sl_mult": 1.0,
+   "max_hold": 24,
+   "val_return": 0.0966992172,
+   "val_sharpe": 5.227322246,
+   "val_n": 98,
+   "val_anchor": 0.0966992172,
+   "test_return": -0.0824830685,
+   "test_sharpe": -5.4837045209,
+   "test_n": 124,
+   "test_win": 0.2096774194,
+   "test_payoff": 2.46495968,
+   "test_mdd": -0.0970501628,
+   "bench": 0.6819415616
+  },
+  {
+   "step": 3,
+   "side": "long",
+   "test_lo": 8752,
+   "test_hi": 9847,
+   "test_start": "2025-09-30",
+   "test_end": "2026-03-31",
+   "regime": "none",
+   "dedup": 0.85,
+   "n_factors": 40,
+   "model": "shallow",
+   "thr_q": 0.5,
+   "thr_abs": -0.0206756046,
+   "tp_mult": 6.0,
+   "sl_mult": 3.0,
+   "max_hold": 48,
+   "val_return": 0.1174963769,
+   "val_sharpe": 14.1446275654,
+   "val_n": 31,
+   "val_anchor": 0.1174963769,
+   "test_return": -0.0673052642,
+   "test_sharpe": -6.8509297451,
+   "test_n": 30,
+   "test_win": 0.3666666667,
+   "test_payoff": 0.8640636996,
+   "test_mdd": -0.0700417416,
+   "bench": -0.60420156
+  },
+  {
+   "step": 3,
+   "side": "short",
+   "test_lo": 8752,
+   "test_hi": 9847,
+   "test_start": "2025-09-30",
+   "test_end": "2026-03-31",
+   "regime": "sma200_slope",
+   "dedup": 0.8,
+   "n_factors": 15,
+   "model": "deep_slow",
+   "thr_q": 0.6,
+   "thr_abs": 0.0376941064,
+   "tp_mult": 2.5,
+   "sl_mult": 0.75,
+   "max_hold": 6,
+   "val_return": 0.0247211431,
+   "val_sharpe": 2.2367668667,
+   "val_n": 38,
+   "val_anchor": 0.0247211431,
+   "test_return": 0.026756383,
+   "test_sharpe": 1.4682274488,
+   "test_n": 104,
+   "test_win": 0.375,
+   "test_payoff": 2.0216230672,
+   "test_mdd": -0.0249266863,
+   "bench": -0.60420156
+  },
+  {
+   "step": 4,
+   "side": "long",
+   "test_lo": 9847,
+   "test_hi": 10942,
+   "test_start": "2026-03-31",
+   "test_end": "2026-09-30",
+   "regime": "none",
+   "dedup": 0.8,
+   "n_factors": 42,
+   "model": "smooth",
+   "thr_q": 0.5,
+   "thr_abs": 0.0218084695,
+   "tp_mult": 3.0,
+   "sl_mult": 1.0,
+   "max_hold": 12,
+   "val_return": 0.0132728984,
+   "val_sharpe": 0.9365836555,
+   "val_n": 93,
+   "val_anchor": 0.0132728984,
+   "test_return": -0.0087523416,
+   "test_sharpe": -0.6448120503,
+   "test_n": 124,
+   "test_win": 0.3387096774,
+   "test_payoff": 1.8447307885,
+   "test_mdd": -0.0362082851,
+   "bench": 0.4239692271
+  },
+  {
+   "step": 4,
+   "side": "short",
+   "test_lo": 9847,
+   "test_hi": 10942,
+   "test_start": "2026-03-31",
+   "test_end": "2026-09-30",
+   "regime": "none",
+   "dedup": 0.8,
+   "n_factors": 14,
+   "model": "shallow",
+   "thr_q": 0.4,
+   "thr_abs": 0.0161733085,
+   "tp_mult": 4.0,
+   "sl_mult": 2.5,
+   "max_hold": 24,
+   "val_return": 0.1010607579,
+   "val_sharpe": 9.7864045135,
+   "val_n": 47,
+   "val_anchor": 0.1010607579,
+   "test_return": -0.014409571,
+   "test_sharpe": -1.4202601085,
+   "test_n": 47,
+   "test_win": 0.4893617021,
+   "test_payoff": 0.8981983617,
+   "test_mdd": -0.0419683847,
+   "bench": 0.4239692271
+  }
+ ],
+ "aggregate": {
+  "long": {
+   "n_trades": 289.0,
+   "win_rate": 0.3356401384083045,
+   "avg_win": 6.329760468103879,
+   "avg_loss": -3.4306731229225456,
+   "payoff_ratio": 1.845049132139887,
+   "profit_factor": 0.9321341969665053,
+   "avg_ret": -0.0015467984150537202,
+   "total_pnl": -44.70247419505254,
+   "avg_bars": 13.650519031141869,
+   "tp_rate": 0.1245674740484429,
+   "sl_rate": 0.5882352941176471,
+   "timeout_rate": 0.28719723183391005,
+   "final_equity": 955.2975258049474,
+   "total_return": -0.04470247419505258,
+   "sharpe": -0.7388404736561641,
+   "calmar": -0.18328163905153516,
+   "max_drawdown": -0.09890066379072249
+  },
+  "short": {
+   "n_trades": 425.0,
+   "win_rate": 0.31529411764705884,
+   "avg_win": 5.1156463880216325,
+   "avg_loss": -2.5579999067171544,
+   "payoff_ratio": 1.9998618352519293,
+   "profit_factor": 0.9208985770575895,
+   "avg_ret": -0.0013854436908186634,
+   "total_pnl": -58.8813568597932,
+   "avg_bars": 7.357647058823529,
+   "tp_rate": 0.17411764705882352,
+   "sl_rate": 0.6376470588235295,
+   "timeout_rate": 0.18823529411764706,
+   "final_equity": 941.1186431402068,
+   "total_return": -0.05888135685979323,
+   "sharpe": -0.7467676072876578,
+   "calmar": -0.22187867356808433,
+   "max_drawdown": -0.10808687208925993
+  },
+  "combined": {
+   "n_trades": 714.0,
+   "win_rate": 0.3235294117647059,
+   "avg_win": 5.625469183554004,
+   "avg_loss": -2.9049010609851362,
+   "payoff_ratio": 1.936544159492387,
+   "profit_factor": 0.9261732936702721,
+   "avg_ret": -0.001450753936342377,
+   "total_pnl": -103.58383105484572,
+   "avg_bars": 9.904761904761905,
+   "tp_rate": 0.15406162464985995,
+   "sl_rate": 0.6176470588235294,
+   "timeout_rate": 0.22829131652661064,
+   "final_equity": 896.4161689451544,
+   "total_return": -0.10358383105484559,
+   "sharpe": -1.1378450619291567,
+   "calmar": -0.3520058464030237,
+   "max_drawdown": -0.12158148469543806
+  }
+ },
+ "val2test_gap": {
+  "long": {
+   "val_ret_mean": 0.10755528683356994,
+   "test_ret_mean": -0.008059452687501568,
+   "ret_gap": 0.1156147395210715,
+   "val_sharpe_mean": 10.066763817883759,
+   "test_sharpe_mean": -0.8273291717726691,
+   "sharpe_gap": 10.894092989656428,
+   "n_pos_test": 2,
+   "n_steps": 5
+  },
+  "short": {
+   "val_ret_mean": 0.06158913462928979,
+   "test_ret_mean": -0.011211027858302502,
+   "ret_gap": 0.07280016248759229,
+   "val_sharpe_mean": 4.795187639398224,
+   "test_sharpe_mean": -0.9050400111949657,
+   "sharpe_gap": 5.700227650593189,
+   "n_pos_test": 2,
+   "n_steps": 5
+  }
+ },
+ "consistency": {
+  "n_fail": 0,
+  "checks": [
+   {
+    "check": "数据起点对齐 DATA_START",
+    "pass": true,
+    "detail": "起点 2021-10-01 -> 首根 2021-10-01 00:00"
+   },
+   {
+    "check": "三步严格时序: train < val < test 且首尾相接",
+    "pass": true,
+    "detail": "step0 train[0,4372) val[4372,5467) test[5467,6562); step1 train[1087,5467) val[5467,6562) test[6562,7657); step2 train[2182,6562) val[6562,7657) test[7657,8752); step3 train[3277,7657) val[7657,8752) test[8752,9847); step4 train[4372,8752) val[8752,9847) test[9847,10942)"
+   },
+   {
+    "check": "前测窗首尾相接铺满连续 OOS 段",
+    "pass": true,
+    "detail": "OOS[5467,10942) 共 5475 根 / 5 折"
+   },
+   {
+    "check": "long 门控沿用 v15 冻结=none",
+    "pass": true,
+    "detail": "各步 long 制度: none, none, none, none, none"
+   },
+   {
+    "check": "每步冻结配置 ∈ v15 网格 且 tp > sl",
+    "pass": true,
+    "detail": "全部 10 个(步×方向)配置均在网格内"
+   },
+   {
+    "check": "阈值 thr_abs 由**选参窗**预测分位冻结(前测窗未参与)",
+    "pass": true,
+    "detail": "step0/long 选参窗分位 -0.054412 vs 冻结 -0.054412; step0/short 选参窗分位 -0.059166 vs 冻结 -0.059166; step1/long 选参窗分位 0.023567 vs 冻结 0.023567; step1/short 选参窗分位 0.003789 vs 冻结 0.003789; step2/long 选参窗分位 0.051718 vs 冻结 0.051718; step2/short 选参窗分位 0.077648 vs 冻结 0.077648; step3/long 选参窗分位 -0.020676 vs 冻结 -0.020676; step3/short 选参窗分位 0.037694 vs 冻结 0.037694; step4/long 选参窗分位 0.021808 vs 冻结 0.021808; step4/short 选参窗分位 0.016173 vs 冻结 0.016173"
+   },
+   {
+    "check": "信号 t 收盘 -> t+1 开盘成交(无未来函数)",
+    "pass": true,
+    "detail": "全部 714 笔成交价 == open[entry_idx], 不一致 0 笔"
+   },
+   {
+    "check": "成本口径 = 单边 5bp / 双边 10bp",
+    "pass": true,
+    "detail": "逐笔复核 714 笔, 不一致 0 笔"
+   },
+   {
+    "check": "前测成交均落在本步前测窗内(entry_hi=test.stop, 不穿越折边界)",
+    "pass": true,
+    "detail": "全部 714 笔入场索引 ∈ 本步前测窗"
+   },
+   {
+    "check": "制度掩码仅用过去信息(截断后取值不变)",
+    "pass": true,
+    "detail": "规则: sma100, sma200, sma200_slope"
+   },
+   {
+    "check": "资金口径 1000 本金 / 单笔 100",
+    "pass": true,
+    "detail": "INIT_CAPITAL=1000 TRADE_NOTIONAL=100"
+   }
+  ]
+ }
+}

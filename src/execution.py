@@ -49,12 +49,17 @@ def simulate_signals(signals: np.ndarray, o: np.ndarray, h: np.ndarray, l: np.nd
                      side: str, tp_mult: float, sl_mult: float,
                      max_hold: int, notional: float,
                      trail_mult: float = 0.0,
-                     scan_lo: int = 1, scan_hi: int = None) -> List[Trade]:
+                     scan_lo: int = 1, scan_hi: int = None,
+                     entry_hi: int = None) -> List[Trade]:
     """按信号数组模拟单腿交易(同一时刻最多一笔)。signals[t]=True 表示 t 收盘发信号。
 
     scan_lo/scan_hi: 只在 [scan_lo, scan_hi) 内查找入场信号(出场仍可延伸到序列末端)。
     因信号在评估段之外恒为 False, 限定扫描区间不改变结果, 但可把每次评估的开销从
     全序列降到评估段长度(评估网格动辄上万组, 这是关键提速)。
+
+    entry_hi: 可选的**入场索引上界(不含)**。默认 None = 不额外约束(旧口径: 窗口最后一根
+    信号可在窗口外一根 open 成交)。滚动 walk-forward 传 entry_hi=评估窗 stop, 使成交严格
+    落在窗内, 杜绝"窗口最后一根信号把仓位开进下一折"的边界穿越。
 
     trail_mult > 0 时启用 **ATR 跟踪止损**: 止损随持仓期内的有利极值单向移动
         long : sl_dyn = max(sl_init, 最高价 - trail_mult * ATR)
@@ -68,13 +73,14 @@ def simulate_signals(signals: np.ndarray, o: np.ndarray, h: np.ndarray, l: np.nd
     cost = _round_trip_cost()
     trail = trail_mult > 0
     hi = (n - 1) if scan_hi is None else int(scan_hi)
+    e_hi = n if entry_hi is None else min(int(entry_hi), n)
     i = max(1, int(scan_lo))
     while i < hi:
         if not signals[i] or not np.isfinite(atr[i]) or atr[i] <= 0:
             i += 1
             continue
         e = i + 1                                   # 下一根 open 成交
-        if e >= n or not np.isfinite(o[e]) or o[e] <= 0:
+        if e >= e_hi or not np.isfinite(o[e]) or o[e] <= 0:
             i += 1
             continue
         entry = float(o[e])
@@ -171,10 +177,13 @@ def evaluate_with_threshold(pred: np.ndarray, ohlc: dict, atr: np.ndarray, times
                             side: str, start: int, end: int, thr_abs: float,
                             tp_mult: float, sl_mult: float,
                             notional: float = None, max_hold: int = None,
-                            trail_mult: float = 0.0, regime: np.ndarray = None) -> dict:
+                            trail_mult: float = 0.0, regime: np.ndarray = None,
+                            entry_hi: int = None) -> dict:
     """统一评估入口(绝对阈值): 信号 -> 成交 -> 指标 + 权益曲线。所有调用方共用, 口径一致。
 
     regime: 可选制度门控(全序列 bool 数组), 与阈值信号取交集。
+    entry_hi: 可选入场索引上界(不含), 见 simulate_signals; 滚动 walk-forward 传 end 以
+             保证成交严格落在评估窗内(不穿越到下一折)。
     """
     notional = C.TRADE_NOTIONAL if notional is None else notional
     max_hold = C.MAX_HOLD_BARS if max_hold is None else int(max_hold)
@@ -182,7 +191,7 @@ def evaluate_with_threshold(pred: np.ndarray, ohlc: dict, atr: np.ndarray, times
     trades = simulate_signals(sig, ohlc["open"], ohlc["high"], ohlc["low"], ohlc["close"],
                               atr, times, side, tp_mult, sl_mult,
                               max_hold, notional, trail_mult=trail_mult,
-                              scan_lo=start, scan_hi=end)
+                              scan_lo=start, scan_hi=end, entry_hi=entry_hi)
     eq = equity_from_trades(trades, len(pred), lo=start, hi=end)
     from src.metrics import summarize
     m = summarize(trades, eq)
@@ -194,11 +203,13 @@ def evaluate_with_params(pred: np.ndarray, ohlc: dict, atr: np.ndarray, times: n
                          side: str, start: int, end: int, thr_q: float,
                          tp_mult: float, sl_mult: float,
                          notional: float = None, max_hold: int = None,
-                         trail_mult: float = 0.0, regime: np.ndarray = None) -> dict:
+                         trail_mult: float = 0.0, regime: np.ndarray = None,
+                         entry_hi: int = None) -> dict:
     """分位阈值版入口(先由 [start,end) 段预测算分位, 再评估)。"""
     thr = threshold_from_quantile(pred, side, thr_q, start, end)
     return evaluate_with_threshold(pred, ohlc, atr, times, side, start, end, thr,
-                                   tp_mult, sl_mult, notional, max_hold, trail_mult, regime)
+                                   tp_mult, sl_mult, notional, max_hold, trail_mult, regime,
+                                   entry_hi=entry_hi)
 
 
 def equity_from_trades(trades: List[Trade], n_bars: int, lo: int = 0, hi: int = None) -> np.ndarray:

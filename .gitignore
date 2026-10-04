@@ -61,6 +61,14 @@ reports/**/v15_tpext_grid.csv
 !reports/**/shards/
 !reports/**/shards/**
 
+# ---- 出库: v18 滚动 walk-forward 的逐折"选参×模型×执行"全量网格 ----
+# 单文件 0.8~6.8MB, 10 个文件共约 34MB, 可由 run_backtest_v18.py 重新生成;
+# 汇总结论已随 walk_forward_steps.csv / metrics_v18.json / backtest_report_v18.md 入库。
+reports/**/selection_grid_step*.csv
+
+# ---- 出库: 逐折结果缓存(供 --from-state 快速重出报告, 约 5.6MB, 可由完整回测重建) ----
+reports/**/state_*.pkl
+
 # ---- 敏感信息: 一律不得入库 ----
 .env
 .env.*

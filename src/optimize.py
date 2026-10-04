@@ -208,7 +208,8 @@ def optimize_full_on_oof(F: pd.DataFrame, y: pd.Series, factor_sets: Dict[float,
                          ret_drop: float = None,
                          thr_grid=None, tp_grid=None, sl_grid=None, hold_grid=None,
                          model_grid: List[Dict] = None,
-                         verbose: bool = True) -> Tuple[dict, pd.DataFrame, pd.DataFrame]:
+                         verbose: bool = True, entry_hi: int = None
+                         ) -> Tuple[dict, pd.DataFrame, pd.DataFrame]:
     """在 **OOF** 上做两阶段选优, 训练只用 train、选择只用 OOF。
 
     外层: 去冗余阈值(决定因子集) × 模型超参候选;
@@ -243,7 +244,8 @@ def optimize_full_on_oof(F: pd.DataFrame, y: pd.Series, factor_sets: Dict[float,
                 r = evaluate_with_params(pred, ohlc, atr, times, side,
                                          oof_slice.start, oof_slice.stop,
                                          ec["thr_q"], ec["tp_mult"], ec["sl_mult"],
-                                         max_hold=ec["max_hold"], regime=regime)
+                                         max_hold=ec["max_hold"], regime=regime,
+                                         entry_hi=entry_hi)
                 m = r["metrics"]
                 rows.append(dict(dedup=float(dedup), n_factors=len(facs), model=mc["name"],
                                  thr_q=float(ec["thr_q"]), tp_mult=float(ec["tp_mult"]),
