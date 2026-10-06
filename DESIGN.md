@@ -1,6 +1,6 @@
 # SOL/USDT 4h 多因子 LGBM 回测(欧易数据) — 设计文档
 
-本文件定义系统的**设计**；`run_backtest_okx.py` 的实现必须与本文件逐条一致。
+本文件定义系统的**设计**；`scripts/backtest/run_backtest_okx.py` 的实现必须与本文件逐条一致。
 运行后由 `reports/consistency_report.md` 自动复核关键不变量，`tests/test_consistency.py`
 用单元测试固化（需求15：确保设计与运行的同一性）。
 

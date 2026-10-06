@@ -73,10 +73,16 @@ def test_shards_intact(shard_dir):
 @pytest.mark.parametrize("path", METRICS_FILES, ids=lambda p: p.parent.name)
 def test_metrics_parse_and_consistent(path):
     d = json.loads(path.read_text(encoding="utf-8"))
-    assert isinstance(d, dict) and "sides" in d, "指标文件结构异常: %s" % path
-    for side in ("long", "short"):
-        m = d["sides"][side]["metrics"]
-        for seg in ("train", "oof", "ooc"):
-            assert "total_return" in m[seg] and "sharpe" in m[seg]
+    assert isinstance(d, dict), "指标文件结构异常: %s" % path
+    if "sides" in d:                       # v1~v15: 单次 train/OOF/OOC 切分
+        for side in ("long", "short"):
+            m = d["sides"][side]["metrics"]
+            for seg in ("train", "oof", "ooc"):
+                assert "total_return" in m[seg] and "sharpe" in m[seg]
+    else:                                  # v18: 滚动 walk-forward(逐折记录)
+        steps = d.get("steps")
+        assert steps, "指标文件缺 steps: %s" % path
+        for s in steps:
+            assert "side" in s and "test_return" in s and "test_sharpe" in s
     n_fail = (d.get("consistency", {}) or {}).get("n_fail")
     assert n_fail == 0, "%s 的设计-运行一致性检查有 %s 项失败" % (path.parent.name, n_fail)

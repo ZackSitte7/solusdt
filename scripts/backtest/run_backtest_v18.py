@@ -16,8 +16,8 @@ v18 因此改为**滚动 walk-forward**(只改切分与选择时机, 因子/标�
   - V18_N_STEPS 步首尾相接 -> 前测窗拼成**连续 OOS 段**(约 50% 数据), 取代脆弱的 15% OOC;
   - 每步阈值 thr_abs 由**该步选参窗**的预测分位冻结, 再应用到前测窗(纯前视)。
 
-运行:  python3 run_backtest_v18.py                 # 完整(约 10 分钟)
-       python3 run_backtest_v18.py --from-state    # 复用已缓存的逐折结果, 仅重出报告
+运行:  python3 scripts/backtest/run_backtest_v18.py                 # 完整(约 10 分钟)
+       python3 scripts/backtest/run_backtest_v18.py --from-state    # 复用已缓存的逐折结果, 仅重出报告
 """
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ import matplotlib.pyplot as plt          # noqa: E402
 import numpy as np                       # noqa: E402
 import pandas as pd                      # noqa: E402
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parents[2]      # 仓库根(脚本位于 scripts/backtest|analysis/)
 sys.path.insert(0, str(BASE_DIR))
 import config as C                                                    # noqa: E402
 from src import data_clean, execution, factor_select, regime          # noqa: E402

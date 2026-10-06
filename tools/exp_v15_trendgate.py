@@ -12,8 +12,9 @@
 选择只在 OOF; OOC 仅观察。
 """
 import sys, time
+from pathlib import Path
 import numpy as np, pandas as pd
-sys.path.insert(0, "/workspace/solusdt_repo")
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import config as C
 from src import data_clean, execution, factor_select, regime, models
 from src import factors as F_lib
@@ -86,7 +87,7 @@ for d in C.V14_LONG_DEDUP_GRID:
                                  win=float(mm["win_rate"]), payoff=float(mm["payoff_ratio"])))
     print("   dedup %.2f done (%.0fs)" % (d, time.time() - t0), flush=True)
 raw = pd.DataFrame(rows)
-raw.to_csv("/workspace/solusdt_repo/reports/v14/v15_gate_grid.csv", index=False)
+raw.to_csv(C.REPORT_DIR / "v14" / "v15_gate_grid.csv", index=False)
 
 print("\n" + "=" * 122)
 print("%-13s %-34s | %-34s" % ("gate", "OOF 选中", "OOC 观察"))
@@ -109,7 +110,7 @@ for g in G:
              mo["total_return"] * 100, mo["sharpe"], mo["n_trades"], mo["win_rate"] * 100,
              best.tp, best.sl, best.hold, best.dedup, best.model), flush=True)
 res = pd.DataFrame(res)
-res.to_csv("/workspace/solusdt_repo/reports/v14/v15_gate_summary.csv", index=False)
+res.to_csv(C.REPORT_DIR / "v14" / "v15_gate_summary.csv", index=False)
 
 print("\n---- 跨门控用 v14 选优规则(收益锚+夏普)选最终解 ----")
 wins = res.rename(columns={"gate": "regime", "oof_ret": "total_return", "oof_sharpe": "sharpe"})

@@ -22,7 +22,7 @@ v12 与 v10 的差别**只在"怎么选"**(数据窗口/因子池/训练/执行�
 而 v12 直接从这一更大的配对集合里选"真实 OOF 段收益最高"的一对 -> OOF 收益**不比 v10 差**
 是选择集上的硬保证。执行网格/因子池/模型网格与 v10 完全相同, 假设空间未扩大。
 折数与 v9/v10 相同 -> 阶段1 长表(配置×子折)与 v9 结构一致, 直接复用 v9 网格。
-运行: python3 run_backtest_v12.py
+运行: python3 scripts/backtest/run_backtest_v12.py
 """
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ import matplotlib.pyplot as plt          # noqa: E402
 import numpy as np                       # noqa: E402
 import pandas as pd                      # noqa: E402
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parents[2]      # 仓库根(脚本位于 scripts/backtest|analysis/)
 sys.path.insert(0, str(BASE_DIR))
 import config as C                                                    # noqa: E402
 from src import data_clean, execution, factor_select, metrics, regime  # noqa: E402

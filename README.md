@@ -26,9 +26,8 @@ make v6 && make v7                     # 逐版运行, 版本间有前置依赖,
 
 ```
 config.py                全局配置: 路径/数据规格/切分/成本/回测约束 + 各版本参数(唯一参数来源)
-run_backtest_okx.py      v1 基线流水线(欧易数据)
-run_backtest_v2..v15.py  逐版迭代入口(每版一个脚本)
-run_backtest_v18.py      v18 滚动 walk-forward 入口
+scripts/backtest/        回测入口: run_backtest_okx.py(= v1), run_backtest_v2..v15.py, run_backtest_v18.py, run_pipeline.py
+scripts/analysis/        分析入口: analyze_factors.py / analyze_factor_dim.py / analyze_trades.py
 src/                     核心库: 数据抓取/清洗、因子、筛选、模型、执行、指标、CV、制度、优化
 tools/shards.py          大文件分片/合并/校验
 tools/compare_versions.py   跨版本指标汇总与对照图
@@ -37,8 +36,8 @@ data/                    原始与清洗数据(随仓库分发)
 reports/                 回测产物; 根目录 = v1 基线, reports/vN/ = 各版本
 ```
 
-> `reports/` 根目录**不是**历史垃圾: [run_backtest_v2.py](run_backtest_v2.py) 与
-> [run_backtest_v3.py](run_backtest_v3.py) 会读 `reports/metrics.json` 作为 v1 基线做对比,
+> `reports/` 根目录**不是**历史垃圾: [run_backtest_v2.py](scripts/backtest/run_backtest_v2.py) 与
+> [run_backtest_v3.py](scripts/backtest/run_backtest_v3.py) 会读 `reports/metrics.json` 作为 v1 基线做对比,
 > 请勿归档或移动。
 
 ## 版本谱系
@@ -78,7 +77,7 @@ v11 及以后见各版本目录下的 `backtest_report_vN.md`。
 
 ## ⭐ 推荐版本: v14
 
-**结论: 实盘/落地取 v14**(入口 [run_backtest_v14.py](run_backtest_v14.py), 产物
+**结论: 实盘/落地取 v14**(入口 [run_backtest_v14.py](scripts/backtest/run_backtest_v14.py), 产物
 [reports/v14/](reports/v14/))。
 
 理由: v14 把 **long 侧 OOC 由负转正**(−1.43% → +2.30%), 且**整体 OOC 合并收益 +4.32% 为全谱系最高**

@@ -19,7 +19,7 @@
  14  因子含趋势类(ADX、均线斜率、MACD、线性回归斜率、区间位置...)
  15  工业级: 参数集中于 config, 运行时一致性报告 + 单元测试
 
-运行: python3 run_backtest_okx.py
+运行: python3 scripts/backtest/run_backtest_okx.py
 """
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ import matplotlib.pyplot as plt          # noqa: E402
 import numpy as np                       # noqa: E402
 import pandas as pd                      # noqa: E402
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parents[2]      # 仓库根(脚本位于 scripts/backtest|analysis/)
 sys.path.insert(0, str(BASE_DIR))
 import config as C                                                    # noqa: E402
 from src import data_clean, execution, factor_select                 # noqa: E402
@@ -308,7 +308,7 @@ def _write_consistency(report) -> None:
     chk("OOF 冻结评估 == 网格最优行", True, "已在主流程中 assert 校验(差值 < 1e-9)")
 
     lines = ["# 设计与运行一致性报告", "",
-             "> 由 run_backtest_okx.py 运行时自动生成; 详细设计见 DESIGN.md; 单元测试见 tests/test_consistency.py", "",
+             "> 由 scripts/backtest/run_backtest_okx.py 运行时自动生成; 详细设计见 DESIGN.md; 单元测试见 tests/test_consistency.py", "",
              "| 检查项 | 结果 | 说明 |", "|---|---|---|"]
     for name, ok, detail in checks:
         lines.append("| %s | %s | %s |" % (name, "PASS" if ok else "FAIL", detail))

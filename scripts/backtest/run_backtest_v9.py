@@ -16,7 +16,7 @@ v7/v8 把 long 冻结自 v6、只重做 short, v9 **两侧都重做**, 并在 OO
 为什么这不是"各自最优再相加": 只看收益, 相加是可分的; 但折间 std 惩罚依赖两侧在各折上的
 搭配, std(r_long+r_short) != std(r_long)+std(r_short), 于是两侧真正耦合。
 
-运行: python3 run_backtest_v9.py   (约需 2× v8 的网格时间)
+运行: python3 scripts/backtest/run_backtest_v9.py   (约需 2× v8 的网格时间)
 """
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ import matplotlib.pyplot as plt          # noqa: E402
 import numpy as np                       # noqa: E402
 import pandas as pd                      # noqa: E402
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parents[2]      # 仓库根(脚本位于 scripts/backtest|analysis/)
 sys.path.insert(0, str(BASE_DIR))
 import config as C                                                    # noqa: E402
 from src import data_clean, execution, factor_select, metrics, regime  # noqa: E402
@@ -247,7 +247,7 @@ def consistency(df, tr, oof, ooc, frozen, res, comb, prune_log, masks, best, pai
 # ================================================================ 主流程
 def main() -> None:
     if not META_V6.exists():
-        raise SystemExit("缺少 v6 冻结配置, 请先运行 run_backtest_v6.py: %s" % META_V6)
+        raise SystemExit("缺少 v6 冻结配置, 请先运行 scripts/backtest/run_backtest_v6.py: %s" % META_V6)
     OUT.mkdir(parents=True, exist_ok=True)
     v6meta = json.loads(META_V6.read_text(encoding="utf-8"))
     v7meta = json.loads(META_V7.read_text(encoding="utf-8")) if META_V7.exists() else None

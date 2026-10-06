@@ -5,7 +5,7 @@
 把每段的净盈亏拆成: 毛收益(扣成本前) / 成本 / 盈亏交易 / 出场原因(止盈/止损/超时),
 并检查信号本身是否还有边际(gross_ret 的均值与 t 值)、冻结阈值在各段的相对位置。
 
-运行: python3 analyze_trades.py
+运行: python3 scripts/analysis/analyze_trades.py
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parents[2]      # 仓库根(脚本位于 scripts/backtest|analysis/)
 sys.path.insert(0, str(BASE_DIR))
 import config as C                                        # noqa: E402
 from src import data_clean, execution                     # noqa: E402

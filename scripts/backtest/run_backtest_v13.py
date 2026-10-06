@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""SOL/USDT 4h 多因子 LGBM 回测 (v5: 制度门控 + VIF 剪枝 + OOF 选优 + ATR 止盈止损(tp>sl))。
+"""SOL/USDT 4h 多因子 LGBM 回测 (v13: 在 v5 口径上优化 OOF 收益与夏普)。
 
-在 v4 基础上只加**制度门控**(其余口径完全一致, 便于对比):
-  依据 v4 结论 —— OOC 亏损主因不是因子冗余, 而是 **train(牛市 +7916%) 与 OOC(熊市 -27%)
-  的制度错配**。做法: 用**只用过去信息**的均线制度做开关, 只在顺势制度里开仓:
-     long 仅当 close>MA(上行制度), short 仅当 close<MA(下行制度)。
-  规则集 {none, sma100, sma200, sma200_slope} 作为**预注册**维度, 一并交给 OOF 选优;
-  OOC 仍**只观察**, 不参与任何选择。
+基线 = **v5**(制度门控 + VIF 迭代剪枝 + OOF 选优 + ATR 止盈止损且 tp>sl; 因子库 / 执行网格 /
+成本 / 资金 / 切分比例与 v5 完全一致), 只改两处:
+  1. **数据窗口对齐 DATA_START=2021-10-01** —— v5 当时的 load_clean() 未做此对齐
+     (起点对齐是 v6 才引入的), 故 v13 与 v5 的数据窗口不同(这是用户要求的口径变化);
+  2. **选择规则改为"收益锚 + 夏普择优"** —— v5 用 (收益, 夏普) 严格字典序, 夏普只在收益
+     完全相等时才起作用, 实际上等于"只看收益"。v13 先取 OOF 收益最高的配置为**收益锚**,
+     再在「OOF 收益 >= 锚收益 - V13_RET_DROP」的**有界让步带**内取 OOF 夏普最高者:
+       V13_RET_DROP = 0 逐位退化为 v5 字典序; > 0 则用**上限明确**的少量收益让步换更高夏普。
 
-运行: python3 run_backtest_v5.py
+让步带用**绝对值**(而非 ×0.98 的比例): OOF 收益可能为负, 按比例会给出方向错误(反而收紧)的门槛。
+选择仍**只在 OOF**(真实 OOF 段, 与 v5 同口径, 不用子折); OOC 全程只观察, 不参与任何一步。
+
+运行: python3 scripts/backtest/run_backtest_v13.py
 """
 from __future__ import annotations
 
@@ -24,7 +29,7 @@ import matplotlib.pyplot as plt          # noqa: E402
 import numpy as np                       # noqa: E402
 import pandas as pd                      # noqa: E402
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parents[2]      # 仓库根(脚本位于 scripts/backtest|analysis/)
 sys.path.insert(0, str(BASE_DIR))
 import config as C                                                    # noqa: E402
 from src import data_clean, execution, factor_select, regime          # noqa: E402
@@ -32,17 +37,24 @@ from src import factors as F_lib                                     # noqa: E40
 from src import optimize                                     # noqa: E402
 from src.cv import time_split                                        # noqa: E402
 
-OUT = C.REPORT_DIR / C.V5_OUT_DIR
+OUT = C.REPORT_DIR / C.V13_OUT_DIR
 SEGS = ("train", "oof", "ooc")
 pd.set_option("display.width", 240)
 
 
 def load_clean() -> pd.DataFrame:
-    """载入欧易原始数据并清洗(与 v1~v4 同一函数口径)。"""
+    """载入欧易原始数据 -> 清洗 -> 对齐 DATA_START(与 v6~v12 同口径)。"""
     if not C.BACKTEST_RAW.exists():
         raise SystemExit("缺少欧易原始数据: %s" % C.BACKTEST_RAW)
     raw = pd.read_parquet(C.BACKTEST_RAW)
-    return data_clean.clean(raw).reset_index(drop=True)
+    df = data_clean.clean(raw).reset_index(drop=True)
+    t0 = pd.Timestamp(C.DATA_START, tz="UTC")
+    dt = pd.to_datetime(df["datetime"], utc=True)
+    df = df[dt.to_numpy() >= t0].reset_index(drop=True)
+    df["log_ret"] = np.log(df["close"]).diff()
+    print("数据起点对齐 DATA_START=%s: 首根 %s, 共 %d 根"
+          % (C.DATA_START, str(df["datetime"].iloc[0])[:16], len(df)))
+    return df
 
 
 def buy_hold(df: pd.DataFrame, seg: slice) -> float:
@@ -74,13 +86,15 @@ def spectrum(F: pd.DataFrame, factors: list, seg: slice) -> dict:
 # ================================================================ 一致性检查
 def consistency(df: pd.DataFrame, tr: slice, oof: slice, ooc: slice,
                 frozen: dict, res: dict, prune_log: dict, masks: dict) -> list:
-    """design == runtime 的运行时断言。v5 特有项: 制度门控一致。"""
+    """design == runtime 的运行时断言。v13 特有项: 数据起点对齐 + 收益锚/夏普择优。"""
     chk = []
 
     def add(name, ok, detail=""):
         chk.append({"check": name, "pass": bool(ok), "detail": detail})
 
     n = len(df)
+    add("数据起点对齐 DATA_START", str(df["datetime"].iloc[0])[:10] == C.DATA_START,
+        "起点 %s -> 首根 %s" % (C.DATA_START, str(df["datetime"].iloc[0])[:16]))
     add("数据切分 70/15/15", (tr.stop - tr.start) == int(n * C.TRAIN_FRAC)
         and (oof.stop - oof.start) == int(n * C.OOF_FRAC),
         "train %d / oof %d / ooc %d" % (tr.stop - tr.start, oof.stop - oof.start,
@@ -192,6 +206,25 @@ def consistency(df: pd.DataFrame, tr: slice, oof: slice, ooc: slice,
            frozen["long"]["tp_mult"], frozen["long"]["sl_mult"],
            frozen["short"]["regime_rule"], len(frozen["short"]["model"].factors),
            frozen["short"]["tp_mult"], frozen["short"]["sl_mult"]))
+
+    # v13 选优规则可复现: 在"各制度规则自身最优"的集合上复核 收益锚 + 夏普择优
+    ok_anchor, det_anchor = True, []
+    for side in ("long", "short"):
+        cs = pd.read_csv(OUT / ("selection_grid_%s.csv" % side))
+        wins = pd.DataFrame([cs[cs["regime"] == r].iloc[0] for r in C.V5_REGIME_GRID
+                             if not cs[cs["regime"] == r].empty])
+        anchor = float(wins["total_return"].max())
+        band = wins[wins["total_return"] >= anchor - C.V13_RET_DROP - 1e-12]
+        band_best = band.sort_values(["sharpe", "total_return"], ascending=False).iloc[0]
+        chosen = frozen[side]["oof_metrics"]
+        same = (abs(float(band_best["total_return"]) - chosen["total_return"]) < 1e-9
+                and abs(float(band_best["sharpe"]) - chosen["sharpe"]) < 1e-9)
+        ok_anchor &= same and (chosen["total_return"] >= anchor - C.V13_RET_DROP - 1e-12)
+        det_anchor.append("%s: 收益锚 %+.4f, 让步带(%+.4f)内最高夏普 %+.3f, 选中 收益 %+.4f/夏普 %+.3f"
+                          % (side, anchor, anchor - C.V13_RET_DROP, float(band["sharpe"].max()),
+                             chosen["total_return"], chosen["sharpe"]))
+    add("v13 收益锚+夏普择优可复现(收益让步 <= %.4f 内取夏普最高)" % C.V13_RET_DROP,
+        ok_anchor, "; ".join(det_anchor))
     return chk
 
 
@@ -199,10 +232,12 @@ def consistency(df: pd.DataFrame, tr: slice, oof: slice, ooc: slice,
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     print("=" * 116)
-    print("SOL/USDT %s LGBM 回测 v5 | 欧易(OKX) | OOF 选优 | tp>sl | VIF<=%.0f | 制度门控 %s"
-          % (C.INTERVAL, C.V4_MAX_VIF, ",".join(C.V5_REGIME_GRID)))
-    print("OOC 仅观察, 不参与任何选择 | 成本 单边 %.1fbp | 本金 %.0f / 单笔 %.0f USDT"
-          % (C.FEE_RATE * 1e4, C.INIT_CAPITAL, C.TRADE_NOTIONAL))
+    print("SOL/USDT %s LGBM 回测 v13 | 欧易(OKX) | 数据 >= %s | OOF 收益锚+夏普择优 | tp>sl | "
+          "VIF<=%.0f | 制度门控 %s"
+          % (C.INTERVAL, C.DATA_START, C.V4_MAX_VIF, ",".join(C.V5_REGIME_GRID)))
+    print("选择: 真实 OOF 段收益锚 + 让步<=%.2fpp 内取夏普最高 | OOC 仅观察, 不参与任何选择 | "
+          "成本 单边 %.1fbp | 本金 %.0f / 单笔 %.0f USDT"
+          % (C.V13_RET_DROP * 100, C.FEE_RATE * 1e4, C.INIT_CAPITAL, C.TRADE_NOTIONAL))
     print("=" * 116)
 
     df = load_clean()
@@ -229,23 +264,30 @@ def main() -> None:
         print("制度 %-13s 允许开仓 bar 数: long %5d / short %5d" % (rule, lu, su))
 
     # 因子集(仅 train) + VIF 迭代剪枝(仅 train, 同 v4)
+    # v13 多头专属扩展: long 用外扩的去冗余网格(让开 0.95 上界), 并把 7 个"多头专用因子"
+    # 显式挡在 short 之外 —— 保证空头口径与 v13 基线逐位不变。
     Ftr = Fmat.iloc[tr].reset_index(drop=True)
-    _, fsets = factor_select.factor_sets_by_dedup(Ftr, y.iloc[tr].reset_index(drop=True),
-                                                  C.OOF_DEDUP_CORR_GRID)
+    y_tr = y.iloc[tr].reset_index(drop=True)
+    dedup_by_side = {"long": C.V13_LONG_DEDUP_GRID, "short": C.OOF_DEDUP_CORR_GRID}
+    _, fs_long = factor_select.factor_sets_by_dedup(Ftr, y_tr, dedup_by_side["long"])
+    _, fs_short = factor_select.factor_sets_by_dedup(Ftr, y_tr, dedup_by_side["short"],
+                                                     exclude=list(C.V13_LONG_FACTORS))
+    fsets = {"long": fs_long, "short": fs_short}
+    print("\n多头专用因子(v13, 仅进 long): %s" % ", ".join(C.V13_LONG_FACTORS))
     pruned: dict = {}
     prune_log: dict = {}
     for side in ("long", "short"):
         print("\n--- VIF 迭代剪枝: %s (阈值 %.0f, 下限 %d) ---" % (side, C.V4_MAX_VIF,
                                                               C.V4_MIN_FACTORS))
-        for d in C.OOF_DEDUP_CORR_GRID:
-            before = fsets[d][side]
+        for d in dedup_by_side[side]:
+            before = fsets[side][d][side]
             kept, dropped = factor_select.vif_prune(Ftr, before)
             vb = factor_select.vif_series(Ftr, before)
             va = factor_select.vif_series(Ftr, kept)
             prune_log[(d, side)] = dict(before=list(before), after=list(kept), dropped=dropped,
                                         max_vif_before=float(vb.max()) if len(vb) else float("nan"),
                                         max_vif_after=float(va.max()) if len(va) else float("nan"))
-            pruned.setdefault(d, {})[side] = kept
+            pruned.setdefault(side, {})[d] = kept
             print("  |corr|<%.2f 因子 %2d -> %2d | 最大VIF %.1f -> %.1f" %
                   (d, len(before), len(kept), prune_log[(d, side)]["max_vif_before"],
                    prune_log[(d, side)]["max_vif_after"]))
@@ -254,13 +296,20 @@ def main() -> None:
     res: dict = {}
     for side in ("long", "short"):
         print("\n### 选择: %s (OOF 上联合择优: 制度规则 × 去冗余 × 模型 × 执行)" % side)
-        fmap = {d: pruned[d][side] for d in C.OOF_DEDUP_CORR_GRID}
+        fmap = {d: pruned[side][d] for d in dedup_by_side[side]}
         per_rule_best = {}
         aggs = []
+        # v13: long 用外扩的执行网格 + 多头专用模型候选; short 沿用全局默认(逐位不变)
+        opt_kw = {}
+        if side == "long":
+            opt_kw = dict(thr_grid=C.V13_LONG_THR_GRID, tp_grid=C.V13_LONG_TP_GRID,
+                          sl_grid=C.V13_LONG_SL_GRID, hold_grid=C.V13_LONG_HOLD_GRID,
+                          model_grid=list(C.V13_LONG_MODEL_GRID))
         for rule in C.V5_REGIME_GRID:
             best, agg, _ = optimize.optimize_full_on_oof(
                 Fmat, y, fmap, side, ohlc, atr, times, tr, oof,
-                tp_gt_sl=C.V3_ENFORCE_TP_GT_SL, regime=masks[rule][side], verbose=False)
+                tp_gt_sl=C.V3_ENFORCE_TP_GT_SL, regime=masks[rule][side],
+                ret_drop=C.V13_RET_DROP, verbose=False, **opt_kw)
             agg = agg.copy()
             agg.insert(0, "regime", rule)
             aggs.append(agg)
@@ -274,11 +323,17 @@ def main() -> None:
                      m["win_rate"] * 100, m["payoff"]))
         combo = pd.concat(aggs, ignore_index=True)
         combo.to_csv(OUT / ("selection_grid_%s.csv" % side), index=False)
-        best_rule = max(per_rule_best,
-                        key=lambda r: (per_rule_best[r]["oof_metrics"][C.OBJECTIVE_PRIMARY],
-                                       per_rule_best[r]["oof_metrics"][C.OBJECTIVE_SECONDARY]))
+        # 制度规则之间也用同一规则: 收益锚(各规则自身最优) + 让步带内夏普择优
+        wins = pd.DataFrame([dict(regime=r, **per_rule_best[r]["oof_metrics"])
+                             for r in C.V5_REGIME_GRID])
+        anchor = float(wins["total_return"].max())
+        wsel = optimize.select_return_anchor_sharpe(wins, C.V13_RET_DROP)
+        best_rule = wsel.iloc[0]["regime"]
         best = per_rule_best[best_rule]
-        print("    ==> 选定制度规则: %s" % best_rule)
+        print("    ==> 收益锚(制度最优收益) %+.2f%% | 让步带 >= %+.2f%% | 选定制度规则: %s "
+              "(收益 %+.2f%% / 夏普 %+.2f)"
+              % (anchor * 100, (anchor - C.V13_RET_DROP) * 100, best_rule,
+                 best["oof_metrics"]["total_return"] * 100, best["oof_metrics"]["sharpe"]))
 
         pred = best["model"].predict(Fmat)
         side_res = {}
@@ -293,14 +348,28 @@ def main() -> None:
 
     # ---------------- 报告
     lines: list = []
-    lines.append("# SOL/USDT 4h 多因子 LGBM 回测报告 (v5: 制度门控 + VIF 剪枝 + OOF 选优 + ATR 止盈止损 tp>sl)\n")
-    lines.append("- 数据源: 欧易(OKX) 4h 现货 %s | 清洗后 %d 根\n" % (C.SYMBOL, len(df)))
+    lines.append("# SOL/USDT 4h 多因子 LGBM 回测报告 (v13: 在 v5 口径上优化 OOF 收益与夏普)\n")
+    lines.append("- 数据源: 欧易(OKX) 4h 现货 %s | 清洗后 %d 根 | **起点对齐 DATA_START=%s**(首根 %s)\n"
+                 % (C.SYMBOL, len(df), C.DATA_START, str(df["datetime"].iloc[0])[:16]))
     lines.append("- 切分: train 70% / OOF 15% / OOC 15%, 按时间顺序\n")
-    lines.append("- 选择: **只在 OOF** 上选优(收益优先、夏普次之); **OOC 仅观察**, 不参与任何选择\n")
+    lines.append("- 选择规则(**v13 改动**): 真实 OOF 段上 **收益锚 + 夏普择优** —— 取 OOF 收益最高者为锚, "
+                 "在「OOF 收益 >= 锚收益 - %.4f(让出上限 %.2f 个百分点)」的有界让步带内取 OOF 夏普最高者; "
+                 "让步带用**绝对值**(收益可能为负, 比例门槛会方向错误)。\n"
+                 % (C.V13_RET_DROP, C.V13_RET_DROP * 100))
+    lines.append("- 选择**只在 OOF**; **OOC 仅观察**, 不参与任何选择\n")
     lines.append("- 执行: 止盈/止损均为 **ATR 倍数**, 且**硬约束 tp > sl**(风险报酬比 > 1)\n")
     lines.append("- 抗过拟合: 因子集做 **VIF 迭代剪枝**(全部 VIF <= %.0f);\n" % C.V4_MAX_VIF)
-    lines.append("- 制度门控: `%s` —— long 仅当 close>MA, short 仅当 close<MA, 规则一并交给 OOF 选优\n\n"
-                 % "\", \"".join(C.V5_REGIME_GRID))
+    lines.append("- 制度门控: `%s` —— long 仅当 close>MA, short 仅当 close<MA, 规则一并交给 OOF 选优\n"
+                 "- 与 v5 的关系: 成本 / 资金 / 切分比例 / 标签 / VIF 纪律**完全一致**; 差别为 "
+                 "(1) 数据起点对齐 2021-10-01, (2) 上述收益锚+夏普择优(替代 v5 的严格字典序), "
+                 "(3) **多头专属扩展**: long 的执行网格(阈值 %.2f~%.2f / tp %.1f~%.1f / sl %.1f~%.1f / "
+                 "hold %s)、去冗余网格 %s、模型候选 %d 个, 并新增 %d 个多头专用因子; "
+                 "**short 逐位不变**(仍用 v5 原网格 + 排除多头专用因子)\n\n"
+                 % ("\", \"".join(C.V5_REGIME_GRID), C.V13_LONG_THR_GRID[0], C.V13_LONG_THR_GRID[-1],
+                    C.V13_LONG_TP_GRID[0], C.V13_LONG_TP_GRID[-1],
+                    C.V13_LONG_SL_GRID[0], C.V13_LONG_SL_GRID[-1], list(C.V13_LONG_HOLD_GRID),
+                    list(C.V13_LONG_DEDUP_GRID), len(C.V13_LONG_MODEL_GRID),
+                    len(C.V13_LONG_FACTORS)))
 
     lines.append("## 绩效(收益率 / 夏普 / 卡玛 / 胜率 / 盈亏比 / 开仓数量)\n\n")
     lines.append("| 方向 | 段 | 制度 | 收益率% | 夏普 | 卡玛 | 胜率% | 盈亏比 | 开仓数量 | 最大回撤% | 止盈率% | 止损率% | 超时率% |\n")
@@ -337,6 +406,20 @@ def main() -> None:
                             int(r["max_hold"]), r["total_return"] * 100, r["sharpe"],
                             int(r["n"]), r["win_rate"] * 100, r["payoff"]))
 
+    lines.append("\n## v13 选择过程(收益锚 → 让步带内夏普择优)\n\n")
+    lines.append("| 方向 | 收益锚(各制度最优中的最高收益)% | 让步带上限% | 选中制度 | 选中收益% | 选中夏普 | 收益让步% |\n")
+    lines.append("|" + "---|" * 7 + "\n")
+    for side in ("long", "short"):
+        cs = pd.read_csv(OUT / ("selection_grid_%s.csv" % side))
+        wins = pd.DataFrame([cs[cs["regime"] == r].iloc[0] for r in C.V5_REGIME_GRID
+                             if not cs[cs["regime"] == r].empty])
+        anchor = float(wins["total_return"].max())
+        ch = frozen[side]["oof_metrics"]
+        lines.append("| %s | %+.2f | %+.2f | %s | %+.2f | %+.2f | %.2f |\n"
+                     % (side, anchor * 100, (anchor - C.V13_RET_DROP) * 100,
+                        frozen[side]["regime_rule"], ch["total_return"] * 100, ch["sharpe"],
+                        (anchor - ch["total_return"]) * 100))
+
     lines.append("\n## 段基准(买入持有)\n\n| 段 | 基准收益% |\n|---|---|\n")
     for s in SEGS:
         lines.append("| %s | %+.2f |\n" % (s, buy_hold(df, segs[s]) * 100))
@@ -359,7 +442,7 @@ def main() -> None:
         lines.append("| %s | %s | %s |\n" % (c["check"], "PASS" if c["pass"] else "**FAIL**",
                                              c["detail"]))
 
-    (OUT / "backtest_report_v5.md").write_text("".join(lines), encoding="utf-8")
+    (OUT / "backtest_report_v13.md").write_text("".join(lines), encoding="utf-8")
 
     # ---------------- 权益曲线
     fig, axes = plt.subplots(2, 1, figsize=(13, 8), sharex=False)
@@ -384,12 +467,15 @@ def main() -> None:
         ax.grid(alpha=0.25)
     axes[-1].set_xlabel("bar index (4h)")
     fig.tight_layout()
-    fig.savefig(OUT / "equity_curve_v5.png", dpi=130)
+    fig.savefig(OUT / "equity_curve_v13.png", dpi=130)
     plt.close(fig)
 
     # ---------------- 落盘
     meta = {"config": {"SYMBOL": C.SYMBOL, "INTERVAL": C.INTERVAL, "SOURCE": C.BACKTEST_SOURCE,
+                       "DATA_START": C.DATA_START,
                        "HORIZON": C.HORIZON, "SELECT_ON": "oof", "V3_ENFORCE_TP_GT_SL": True,
+                       "V13_SELECT_RULE": "return_anchor_then_sharpe",
+                       "V13_RET_DROP": C.V13_RET_DROP,
                        "V4_MAX_VIF": C.V4_MAX_VIF, "V4_MIN_FACTORS": C.V4_MIN_FACTORS,
                        "V5_REGIME_GRID": list(C.V5_REGIME_GRID), "V5_REGIME_MA": C.V5_REGIME_MA,
                        "OBJECTIVE_PRIMARY": C.OBJECTIVE_PRIMARY,
@@ -413,8 +499,8 @@ def main() -> None:
             "oof_metrics": f["oof_metrics"],
             "metrics": {s: {k: float(v) for k, v in res[side][s]["metrics"].items()}
                         for s in SEGS}}
-    (OUT / "metrics_v5.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1),
-                                         encoding="utf-8")
+    (OUT / "metrics_v13.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1),
+                                          encoding="utf-8")
 
     tr_all = []
     for side in ("long", "short"):
@@ -425,11 +511,12 @@ def main() -> None:
                                    exit_price=t.exit_price, exit_reason=t.exit_reason,
                                    bars_held=t.bars_held, gross_ret=t.gross_ret,
                                    net_ret=t.net_ret, pnl_usdt=t.pnl_usdt))
-    pd.DataFrame(tr_all).to_csv(OUT / "trades_v5.csv", index=False)
+    pd.DataFrame(tr_all).to_csv(OUT / "trades_v13.csv", index=False)
 
     # ---------------- 控制台汇总
     print("\n" + "=" * 116)
-    print("结果汇总 (v5: 制度门控 + VIF 剪枝 + OOF 选优 + tp>sl, OOC 仅观察)")
+    print("结果汇总 (v13: 数据 >= %s | OOF 收益锚+夏普择优 | 制度门控 + VIF 剪枝 + tp>sl, OOC 仅观察)"
+          % C.DATA_START)
     print("=" * 116)
     print("%-6s %-6s %-14s %9s %8s %8s %8s %8s %8s" %
           ("方向", "段", "制度", "收益率%", "夏普", "卡玛", "胜率%", "盈亏比", "开仓数"))
@@ -440,25 +527,27 @@ def main() -> None:
                   (side, s, frozen[side]["regime_rule"], m["total_return"] * 100, m["sharpe"],
                    m["calmar"], m["win_rate"] * 100, m["payoff_ratio"], m["n_trades"]))
 
-    v4p = C.REPORT_DIR / C.V4_OUT_DIR / "metrics_v4.json"
-    if v4p.exists():
-        v4 = json.loads(v4p.read_text(encoding="utf-8"))
-        print("\n%-6s %-6s %22s %22s" % ("方向", "段", "v4 (无制度门控)", "v5 (制度门控)"))
+    v5p = C.REPORT_DIR / C.V5_OUT_DIR / "metrics_v5.json"
+    if v5p.exists():
+        v5 = json.loads(v5p.read_text(encoding="utf-8"))
+        print("\n%-6s %-6s %26s %26s" % ("方向", "段", "v5 (旧数据窗口/字典序)", "v13 (2021-10-01起/锚+夏普)"))
         for side in ("long", "short"):
             for s in ("oof", "ooc"):
-                a = v4["sides"][side]["metrics"][s]
+                a = v5["sides"][side]["metrics"][s]
                 b = res[side][s]["metrics"]
-                print("%-6s %-6s %+9.2f%%/夏普%5.2f %+9.2f%%/夏普%5.2f" %
+                print("%-6s %-6s %+13.2f%%/夏普%5.2f %+16.2f%%/夏普%5.2f" %
                       (side, s, a["total_return"] * 100, a["sharpe"],
                        b["total_return"] * 100, b["sharpe"]))
+    else:
+        print("\n(未找到 %s, 跳过与 v5 的对照)" % v5p)
 
     print("\n一致性检查: 失败项 %d / %d" % (n_fail, len(cons)))
     for c in cons:
         if not c["pass"]:
             print("  FAIL: %s | %s" % (c["check"], c["detail"]))
     print("\n产出目录: %s" % OUT)
-    print("  backtest_report_v5.md / metrics_v5.json / equity_curve_v5.png / "
-          "selection_grid_*.csv / trades_v5.csv")
+    print("  backtest_report_v13.md / metrics_v13.json / equity_curve_v13.png / "
+          "selection_grid_*.csv / trades_v13.csv")
 
 
 if __name__ == "__main__":

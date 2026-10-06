@@ -2,13 +2,13 @@
 # -*- coding: utf-8 -*-
 """SOL/USDT 4h 多因子 LGBM 回测 (v2: 抗过拟合选择协议) —— 端到端主脚本。
 
-与 v1 (run_backtest_okx.py) 的唯一区别是**选择协议**, 其余口径(数据/清洗/因子/标签/
+与 v1 (scripts/backtest/run_backtest_okx.py) 的唯一区别是**选择协议**, 其余口径(数据/清洗/因子/标签/
 成本/资金/指标)完全一致, 保证可比:
 
   v1: 在 15% 的 OOF 上比较 6480 组 -> OOF 既是选择集又是报告段(选择偏差)
   v2: 在 train 内部的前推折上比较 64 组 -> OOF 与 OOC **都只被读一次**
 
-设计逐条依据见 config.py「抗过拟合选择协议」与 DESIGN.md 第 4 节。运行: python3 run_backtest_v2.py
+设计逐条依据见 config.py「抗过拟合选择协议」与 DESIGN.md 第 4 节。运行: python3 scripts/backtest/run_backtest_v2.py
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt          # noqa: E402
 import numpy as np                       # noqa: E402
 import pandas as pd                      # noqa: E402
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parents[2]      # 仓库根(脚本位于 scripts/backtest|analysis/)
 sys.path.insert(0, str(BASE_DIR))
 import config as C                                                    # noqa: E402
 from src import data_clean, execution, protocol                        # noqa: E402

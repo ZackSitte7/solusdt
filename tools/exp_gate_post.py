@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """实验(后处理): 读 exp_gate_raw.csv 选出各 (arm,gate) 的 OOF 最优, 重训该模型后在 OOC 上观察。"""
 import sys, time
+from pathlib import Path
 import numpy as np, pandas as pd
-sys.path.insert(0, "/workspace/solusdt_repo")
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import config as C
 from src import data_clean, execution, factor_select, regime, models
 from src import factors as F_lib
@@ -32,7 +33,7 @@ for arm, exc in ARMS.items():
     _, fs = factor_select.factor_sets_by_dedup(Ftr, y_tr, C.V14_LONG_DEDUP_GRID, exclude=exc)
     pruned[arm] = {d: factor_select.vif_prune(Ftr, fs[d]["long"])[0] for d in C.V14_LONG_DEDUP_GRID}
 
-raw = pd.read_csv("/workspace/solusdt_repo/reports/v14/exp_gate_raw.csv").rename(columns={"ret": "total_return"})
+raw = pd.read_csv(C.REPORT_DIR / "v14" / "exp_gate_raw.csv").rename(columns={"ret": "total_return"})
 MG = {m["name"]: m for m in C.V14_LONG_MODEL_GRID}
 rows = []
 print("=" * 132)
@@ -59,5 +60,5 @@ for arm in ARMS:
                          ooc_n=int(mo["n_trades"]), tp=float(best.tp), sl=float(best.sl),
                          hold=int(best.hold), dedup=float(best.dedup), model=best.model,
                          thr_abs=float(best.thr_abs), n_factors=len(facs)))
-pd.DataFrame(rows).to_csv("/workspace/solusdt_repo/reports/v14/exp_gate_summary.csv", index=False)
+pd.DataFrame(rows).to_csv(C.REPORT_DIR / "v14" / "exp_gate_summary.csv", index=False)
 print("\n耗时 %.0fs" % (time.time() - t0))

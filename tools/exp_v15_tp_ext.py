@@ -4,8 +4,9 @@
 gate ∈ {none, sma200, adx_up, sma200_slope}; 其余口径同 v14。
 """
 import sys, time
+from pathlib import Path
 import numpy as np, pandas as pd
-sys.path.insert(0, "/workspace/solusdt_repo")
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import config as C
 from src import data_clean, execution, factor_select, regime, models
 from src import factors as F_lib
@@ -62,7 +63,7 @@ for d in C.V14_LONG_DEDUP_GRID:
                                  sharpe=float(mm["sharpe"]), tp_rate=float(mm["tp_rate"]),
                                  win=float(mm["win_rate"]), payoff=float(mm["payoff_ratio"])))
     print("  dedup %.2f (%.0fs)" % (d, time.time() - t0), flush=True)
-raw = pd.DataFrame(rows); raw.to_csv("/workspace/solusdt_repo/reports/v14/v15_tpext_grid.csv", index=False)
+raw = pd.DataFrame(rows); raw.to_csv(C.REPORT_DIR / "v14" / "v15_tpext_grid.csv", index=False)
 
 base_ret, base_sh = 0.09179612840019225, 8.593892798504415
 print("\nv14 基线 OOF: 收益 %+.2f%% 夏普 %.2f" % (base_ret * 100, base_sh))
@@ -90,5 +91,5 @@ for g in G:
     if len(dom):
         print("     支配解 top3:", [(round(r.total_return*100,2), round(r.sharpe,2), r.tp, r.sl, r.hold,
               r.model) for r in dom.sort_values("sharpe", ascending=False).head(3).itertuples()])
-pd.DataFrame(res).to_csv("/workspace/solusdt_repo/reports/v14/v15_tpext_summary.csv", index=False)
+pd.DataFrame(res).to_csv(C.REPORT_DIR / "v14" / "v15_tpext_summary.csv", index=False)
 print("\n耗时 %.0fs" % (time.time() - t0))

@@ -1,29 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""SOL/USDT 4h 多因子 LGBM 回测 (v11: 强化选择器, 把 OOF 收益+夏普再推高)。
+"""SOL/USDT 4h 多因子 LGBM 回测 (v10: OOF 收益 + 夏普 双目标, 输出 OOF/OOC 总收益曲线)。
 
-用户要求: 在 v10 上继续**优化 OOF 的收益和夏普**(数据固定 DATA_START=2021-10-01 起)。
+用户要求: **优化 OOF 的收益和夏普**, 并给出 OOF 与 OOC 的总体收益曲线。
 
-v11 与 v10 的差别**只在"怎么选"**(数据窗口/因子池/训练/执行网格/成本/资金/合并口径/
-排序目标/折数全部逐位相同):
-  v10: 候选池每侧只按"该侧稳健收益"取前 200;
-  v11: 候选池**双目标保留 + Pareto 前沿**, 每侧 500 个。
+与 v9 的差别只在**选择目标**(网格/训练/成本/资金/选择段与 v9 逐位相同):
+  v9 : 主目标 = 合并稳健收益, 次目标 = 最差折收益          (目标里没有夏普)
+  v10: 主目标 = 合并稳健收益, 次目标 = 合并稳健夏普, 三目标 = 最差折收益   (收益优先, 夏普次之)
+两者都按跨折稳健(均值 - V8_ROBUST_K×标准差); 合并夏普按**真实 bar 级**重建
+(`eq_c = eq_long + eq_short - INIT_CAPITAL` 后按 bar 收益年化), 不是把两侧夏普相加。
 
-为什么这是"强化选择器"而不是"扩大假设空间": 执行网格/因子池/模型网格**一个都没动**,
-搜索的假设空间与 v10 完全相同 —— 变的只是**从同一批假设里保留哪些进联合配对**。
-v10 的候选池只按收益排序, 存在把"夏普高、收益略低"的配置在阶段1 丢掉的风险
-(实测在 v9 的 3 折长表上前 200 已含最高稳健夏普, 故是风险而非既成事实);
-v11 用 min(收益排名, 夏普排名) + Pareto 前沿把这类解保留下来。
+选择仍**只发生在 OOF 子折**; OOC 全程只观察。
+v10 两侧都做(long / short 不冻结), 两侧同用 v7 的制度与止损网格。
 
-折数**保持 3 折与 v10 一致**是这里的硬约束: 只有折数不变, 目标取值尺度才逐位相同,
-v11 的候选池才**严格包含** v10 的池, "不比 v10 差"才是选择集上的硬保证。
-(教训: 曾把折数 3 改 5, 改变了目标本身尺度、使包含性失效, 反而选出更差的配对 —— 已回退。)
-
-排序目标仍与 v10 一致: 主 = 合并稳健收益, 次 = 合并稳健夏普(真实 bar 级), 三 = 最差折合并收益。
-选择仍**只发生在 OOF 子折**; OOC 全程只观察。两侧都做(long / short 不冻结), 同用 v7 制度/止损网格。
-
-折数与 v9/v10 相同 -> 阶段1 长表(配置×子折)与 v9 结构一致, 直接复用 v9 网格。
-运行: python3 run_backtest_v11.py
+阶段1 的网格与 v9 完全相同, 默认复用 reports/v9/selection_folds_*.csv(见 C.V10_REUSE_GRID_FROM),
+缺失时自动重算。运行: python3 scripts/backtest/run_backtest_v10.py
 """
 from __future__ import annotations
 
@@ -37,7 +28,7 @@ import matplotlib.pyplot as plt          # noqa: E402
 import numpy as np                       # noqa: E402
 import pandas as pd                      # noqa: E402
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parents[2]      # 仓库根(脚本位于 scripts/backtest|analysis/)
 sys.path.insert(0, str(BASE_DIR))
 import config as C                                                    # noqa: E402
 from src import data_clean, execution, factor_select, metrics, regime  # noqa: E402
@@ -45,14 +36,14 @@ from src import factors as F_lib                                     # noqa: E40
 from src import models, optimize                                     # noqa: E402
 from src.cv import time_split                                        # noqa: E402
 
-OUT = C.REPORT_DIR / C.V11_OUT_DIR
+OUT = C.REPORT_DIR / C.V10_OUT_DIR
 SEGS = ("train", "oof", "ooc")
 KEYS = list(optimize._V8_CONFIG_KEYS)
 pd.set_option("display.width", 240)
 
 
 def load_clean() -> pd.DataFrame:
-    """载入欧易原始数据 -> 清洗 -> 对齐 DATA_START(与 v6~v10 完全同口径)。"""
+    """载入欧易原始数据 -> 清洗 -> 对齐 DATA_START(与 v6~v9 完全同口径)。"""
     if not C.BACKTEST_RAW.exists():
         raise SystemExit("缺少欧易原始数据: %s" % C.BACKTEST_RAW)
     raw = pd.read_parquet(C.BACKTEST_RAW)
@@ -92,7 +83,7 @@ def spectrum(F: pd.DataFrame, factors: list, seg: slice) -> dict:
 
 
 def build_factor_sets(Fmat: pd.DataFrame, y: pd.Series, tr: slice):
-    """(因子池 × 去冗余) 在 train 上产出多空因子集 + VIF 剪枝(与 v6~v10 同口径)。"""
+    """(因子池 × 去冗余) 在 train 上产出多空因子集 + VIF 剪枝(与 v6~v9 同口径)。"""
     Ftr_all = Fmat.iloc[tr].reset_index(drop=True)
     ytr = y.iloc[tr].reset_index(drop=True)
     fsets: dict = {}
@@ -300,9 +291,9 @@ def consistency(df, tr, oof, ooc, frozen, res, comb, prune_log, masks, best, pai
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     print("=" * 120)
-    print("SOL/USDT %s LGBM 回测 v11 | 欧易(OKX) | 强化选择器(OOF 收益+夏普) | OOC 仅观察" % C.INTERVAL)
-    print("主目标 = 合并稳健收益(收益优先) | 次目标 = 合并稳健夏普(真实 bar 级) | 每侧候选 %d | OOF 子折 %d"
-          % (C.V11_CAND_PER_SIDE, C.V11_N_FOLDS))
+    print("SOL/USDT %s LGBM 回测 v10 | 欧易(OKX) | OOF 收益+夏普 双目标 | OOC 仅观察" % C.INTERVAL)
+    print("主目标 = 合并稳健收益(收益优先) | 次目标 = 合并稳健夏普(真实 bar 级) | 每侧候选 %d"
+          % C.V9_CAND_PER_SIDE)
     print("=" * 120)
 
     df = load_clean()
@@ -314,7 +305,7 @@ def main() -> None:
     ohlc = {k: df[k].to_numpy(dtype=float) for k in ("open", "high", "low", "close")}
     atr = df["atr"].to_numpy(dtype=float)
     times = df["datetime"].to_numpy()
-    folds = optimize._v8_fold_slices(oof, C.V11_N_FOLDS)
+    folds = optimize._v8_fold_slices(oof, C.V8_N_FOLDS)
 
     print("\n数据: %d 根  %s ~ %s | 因子库 %d 个 | 段基准 train %+.2f%% / OOF %+.2f%% / OOC %+.2f%%"
           % (len(df), str(df["datetime"].iloc[0])[:16], str(df["datetime"].iloc[-1])[:16],
@@ -334,17 +325,17 @@ def main() -> None:
     # ---------------- 阶段1: 两侧"配置 × 子折"长表(网格与 v9 相同)
     raw: dict = {}
     prebuilt: dict = {}
-    reuse_from = (C.REPORT_DIR / C.V11_REUSE_GRID_FROM) if C.V11_REUSE_GRID_FROM else None
+    reuse_from = (C.REPORT_DIR / C.V10_REUSE_GRID_FROM) if C.V10_REUSE_GRID_FROM else None
     for side in ("long", "short"):
         src = (reuse_from / ("selection_folds_%s.csv" % side)) if reuse_from else None
         if src is not None and src.exists():
             raw[side] = pd.read_csv(src)
             prebuilt[side] = {}
-            print("\n### 阶段1[%s]: 复用 %s (%d 行, 与 v11 网格逐位相同)"
+            print("\n### 阶段1[%s]: 复用 %s (%d 行, 与 v10 网格逐位相同)"
                   % (side, src.relative_to(C.BASE_DIR), len(raw[side])))
             continue
         print("\n### 阶段1[%s]: OOF 内部分折稳健评估(因子池 × 制度 × 去冗余 × 模型 × 执行 × %d 折)"
-              % (side, C.V11_N_FOLDS))
+              % (side, C.V8_N_FOLDS))
         fmap = {(pool, d): fsets[(pool, d)][side]
                 for pool in C.V6_FACTOR_POOLS for d in C.V6_DEDUP_GRID}
         regimes = {rule: masks[rule][side] for rule in C.V7_REGIME_GRID}
@@ -353,12 +344,12 @@ def main() -> None:
             Fmat, y, fmap, side, ohlc, atr, times, tr, oof, regimes,
             thr_grid=C.V6_THR_GRID, hold_grid=C.V6_HOLD_GRID, trail_grid=C.V6_TRAIL_GRID,
             sl_grid=C.V7_SL_GRID, tp_gt_sl=C.V3_ENFORCE_TP_GT_SL, verbose=True,
-            n_folds=C.V11_N_FOLDS, out_models=prebuilt[side])
+            out_models=prebuilt[side])
         raw[side].to_csv(OUT / ("selection_folds_%s.csv" % side), index=False)
 
     # ---------------- 候选池 -> 需要的模型/预测
-    pl = optimize.candidate_pool_v11(raw["long"], C.V11_CAND_PER_SIDE, C.V8_ROBUST_K)
-    ps = optimize.candidate_pool_v11(raw["short"], C.V11_CAND_PER_SIDE, C.V8_ROBUST_K)
+    pl = optimize.candidate_pool_v9(raw["long"], C.V9_CAND_PER_SIDE, C.V8_ROBUST_K)
+    ps = optimize.candidate_pool_v9(raw["short"], C.V9_CAND_PER_SIDE, C.V8_ROBUST_K)
     print("\n阶段1 候选池: long %d 个(稳健收益第1 %+.2f%%), short %d 个(稳健收益第1 %+.2f%%)"
           % (len(pl), pl.iloc[0]["robust_ret"] * 100, len(ps), ps.iloc[0]["robust_ret"] * 100))
     pmap = {"long": build_pred_map("long", pl, fsets, Fmat, y, tr, prebuilt["long"]),
@@ -372,10 +363,10 @@ def main() -> None:
 
     # ---------------- 阶段2: 收益 + 夏普 双目标联合选优
     print("\n### 阶段2: 合并组合联合选优(主: 稳健收益 | 次: 稳健夏普[真实 bar 级])")
-    best, pairs, _, _ = optimize.joint_select_v11(
+    best, pairs, _, _ = optimize.joint_select_v10(
         raw["long"], raw["short"], pmap["long"], pmap["short"], ohlc, atr, times, folds, masks,
-        C.V11_CAND_PER_SIDE, robust_k=C.V8_ROBUST_K, top_report=C.V9_TOP_PAIRS)
-    pairs.to_csv(OUT / "selection_pairs_v11.csv", index=False)
+        C.V9_CAND_PER_SIDE, robust_k=C.V8_ROBUST_K, top_report=C.V9_TOP_PAIRS)
+    pairs.to_csv(OUT / "selection_pairs_v10.csv", index=False)
     print("    ==> 选中组合: 稳健收益 %+.3f | 稳健夏普 %+.3f | 最差折 %+.3f"
           % (best["robust_combined"], best["sharpe_combined"], best["worst_combined"]))
     print("        合并逐折收益: " + ", ".join("%+.2f%%" % (v * 100) for v in best["fold_returns"]))
@@ -409,17 +400,13 @@ def main() -> None:
 
     # ---------------- 报表
     L: list = []
-    L.append("# SOL/USDT 4h 多因子 LGBM 回测报告 (v11: 强化选择器, OOF 收益+夏普)\n\n")
+    L.append("# SOL/USDT 4h 多因子 LGBM 回测报告 (v10: OOF 收益+夏普 双目标)\n\n")
     L.append("- 数据: 欧易(OKX) 4h %s | 清洗后 %d 根(起点 %s) | train/OOF/OOC = 70/15/15\n"
              % (C.SYMBOL, len(df), C.DATA_START))
-    L.append("- v11 与 v10 的**排序目标与折数逐位相同**(主 = 合并稳健收益; 次 = 合并稳健夏普, 真实 bar 级重建; "
-             "三 = 最差折收益; OOF 均分 %d 折), 差别只在候选池: 每侧 200→%d, "
-             "并由\"只按稳健收益截断\"改为**双目标保留 + Pareto 前沿**(强制纳入(收益,夏普)非支配解)。\n"
-             % (C.V11_N_FOLDS, C.V11_CAND_PER_SIDE))
-    L.append("- 折数不变 -> v11 候选池**严格包含** v10 池, \"主目标不比 v10 差\"是选择集上的硬保证。\n")
-    L.append("- 执行网格 / 因子池 / 模型网格与 v10 **完全相同** -> 假设空间未扩大, 只是少丢好解。\n")
+    L.append("- v10 在 v9 基础上**把夏普加入 OOF 选择目标**: 主目标 = 合并稳健收益(收益优先), "
+             "次目标 = 合并稳健夏普(真实 bar 级重建), 三目标 = 最差折收益。\n")
     L.append("- 选择**只在 OOF 子折**; **OOC 仅观察**。两侧都做(long 不冻结), 同用 v7 制度/止损网格。\n")
-    L.append("- OOF 子折: %s | 每侧候选 %d 个\n\n" % (", ".join("[%d,%d)" % f for f in folds), C.V11_CAND_PER_SIDE))
+    L.append("- OOF 子折: %s | 每侧候选 %d 个\n\n" % (", ".join("[%d,%d)" % f for f in folds), C.V9_CAND_PER_SIDE))
 
     L.append("## 合并总收益与夏普对照\n\n| 段 | 版本 | 合并收益% | 合并夏普 |\n|---|---|---|---|\n")
     def _meta(path, tag):
@@ -436,14 +423,13 @@ def main() -> None:
     _meta(C.REPORT_DIR / C.V6_OUT_DIR / "metrics_v6.json", "v6")
     _meta(C.REPORT_DIR / C.V8_OUT_DIR / "metrics_v8.json", "v8")
     _meta(C.REPORT_DIR / C.V9_OUT_DIR / "metrics_v9.json", "v9")
-    _meta(C.REPORT_DIR / C.V10_OUT_DIR / "metrics_v10.json", "v10")
     for s in SEGS:
         m = comb[s]["metrics"]
-        L.append("| %s | **v11** | **%+.2f** | **%.2f** |\n" % (s, m["total_return"] * 100, m["sharpe"]))
-    L.append("\n> v6/v8/v9/v10 的合并收益 = 各自 JSON 两侧 `total_return` 之和(可加性); "
+        L.append("| %s | **v10** | **%+.2f** | **%.2f** |\n" % (s, m["total_return"] * 100, m["sharpe"]))
+    L.append("\n> v6/v8/v9 的合并收益 = 各自 JSON 两侧 `total_return` 之和(可加性); "
              "单腿夏普仅供参考, 组合夏普须按 bar 级重建。\n")
 
-    L.append("\n## v11 分腿与合并明细\n\n| 段 | 腿 | 收益率% | 夏普 | 卡玛 | 最大回撤% | 胜率% | 盈亏比 | 开仓数 | 止盈率% | 止损率% |\n")
+    L.append("\n## v10 分腿与合并明细\n\n| 段 | 腿 | 收益率% | 夏普 | 卡玛 | 最大回撤% | 胜率% | 盈亏比 | 开仓数 | 止盈率% | 止损率% |\n")
     L.append("|" + "---|" * 12 + "\n")
     for s in SEGS:
         for leg, m in (("long", res["long"][s]["metrics"]), ("short", res["short"][s]["metrics"]),
@@ -460,8 +446,8 @@ def main() -> None:
     for i in range(len(pairs)):
         r = pairs.iloc[i]
         star = " **<-选中**" if i == 0 else ""
-        fr_s = "/".join("%+.2f" % (r["fold%d_ret" % (k + 1)] * 100) for k in range(len(folds)))
-        fs_s = "/".join("%+.2f" % r["fold%d_sharpe" % (k + 1)] for k in range(len(folds)))
+        fr_s = "/".join("%+.2f" % (r["fold%d_ret" % (k + 1)] * 100) for k in range(C.V8_N_FOLDS))
+        fs_s = "/".join("%+.2f" % r["fold%d_sharpe" % (k + 1)] for k in range(C.V8_N_FOLDS))
         L.append("| %d%s | %s/%s/%.2f-%.2f/%d/%.1f | %s/%s/%.2f-%.2f/%d/%.1f | %+.3f | %+.3f | %+.2f | %+.2f | %s | %s |\n"
                  % (i + 1, star, r["long_pool"], r["long_regime"], r["long_tp_mult"],
                     r["long_sl_mult"], int(r["long_max_hold"]), r["long_trail_mult"],
@@ -470,17 +456,16 @@ def main() -> None:
                     r["robust_combined"], r["sharpe_combined"], r["mean_combined"] * 100,
                     r["worst_combined"] * 100, fr_s, fs_s))
 
-    L.append("\n## 阶段1 每侧候选池(各前 15; 入池依据 = min(收益排名,夏普排名), 0 = Pareto 前沿)\n\n")
+    L.append("\n## 阶段1 每侧候选池(各前 15)\n\n")
     for side, pool in (("long", pl), ("short", ps)):
         L.append("**" + side + " 候选池**\n\n| 池 | 制度 | |corr|< | 模型 | tp | sl | hold | trail | "
-                 "稳健收益% | 稳健夏普 | 入池优先级 | Pareto | 折均收益% | 最差折% |\n")
-        L.append("|" + "---|" * 14 + "\n")
+                 "稳健收益% | 折均收益% | 最差折% |\n")
+        L.append("|" + "---|" * 12 + "\n")
         for i in range(min(15, len(pool))):
             p = pool.iloc[i]
-            L.append("| %s | %s | %.2f | %s | %.2f | %.2f | %d | %.1f | %+.2f | %+.2f | %.0f | %s | %+.2f | %+.2f |\n"
+            L.append("| %s | %s | %.2f | %s | %.2f | %.2f | %d | %.1f | %+.2f | %+.2f | %+.2f |\n"
                      % (p["pool"], p["regime"], p["dedup"], p["model"], p["tp_mult"], p["sl_mult"],
                         int(p["max_hold"]), p["trail_mult"], p["robust_ret"] * 100,
-                        p["robust_sharpe"], p["robust_rank"], "是" if p["on_pareto"] else "",
                         p["ret_mean"] * 100, p["ret_min"] * 100))
         L.append("\n")
 
@@ -504,7 +489,7 @@ def main() -> None:
              % (n_fail, len(cons)))
     for c in cons:
         L.append("| %s | %s | %s |\n" % (c["check"], "PASS" if c["pass"] else "**FAIL**", c["detail"]))
-    (OUT / "backtest_report_v11.md").write_text("".join(L), encoding="utf-8")
+    (OUT / "backtest_report_v10.md").write_text("".join(L), encoding="utf-8")
 
     # ---------------- 曲线 1: 全序列(三段标注)
     eq_long = execution.equity_from_trades([t for s in SEGS for t in res["long"][s]["trades"]], len(df))
@@ -521,16 +506,15 @@ def main() -> None:
         ax.axvspan(segs[s].start, segs[s].stop, alpha=0.05,
                    color={"train": "tab:blue", "oof": "tab:orange", "ooc": "tab:green"}[s])
     mc, mo = comb["oof"]["metrics"], comb["ooc"]["metrics"]
-    ax.set_title("v11 (stronger selector: %d folds, %d candidates/side, dual-objective pool + Pareto)"
-                 " | OOF %+.2f%% sharpe %.2f | OOC %+.2f%% sharpe %.2f [OOC = observation only]"
-                 % (C.V11_N_FOLDS, C.V11_CAND_PER_SIDE, mc["total_return"] * 100, mc["sharpe"],
-                    mo["total_return"] * 100, mo["sharpe"]))
+    ax.set_title("v10 (OOF return+sharpe objective) | OOF %+.2f%% sharpe %.2f | OOC %+.2f%% sharpe %.2f "
+                 "[OOC = observation only]" % (mc["total_return"] * 100, mc["sharpe"],
+                                               mo["total_return"] * 100, mo["sharpe"]))
     ax.set_xlabel("bar index (4h)")
     ax.set_ylabel("Equity (USDT)")
     ax.legend(loc="best", fontsize=9)
     ax.grid(alpha=0.25)
     fig.tight_layout()
-    fig.savefig(OUT / "equity_curve_v11_full.png", dpi=130)
+    fig.savefig(OUT / "equity_curve_v10_full.png", dpi=130)
     plt.close(fig)
 
     # ---------------- 曲线 2: OOF / OOC 总体收益曲线(用户要求)
@@ -552,10 +536,10 @@ def main() -> None:
         ax.set_ylabel("Equity (USDT, start = %.0f)" % C.INIT_CAPITAL)
         ax.legend(loc="best", fontsize=9)
         ax.grid(alpha=0.25)
-    fig.suptitle("v11 combined equity: OOF (selection segment) vs OOC (observation only) "
+    fig.suptitle("v10 combined equity: OOF (selection segment) vs OOC (observation only) "
                  "[combined = eq_long + eq_short - INIT]")
     fig.tight_layout()
-    fig.savefig(OUT / "equity_v11_oof_ooc.png", dpi=130)
+    fig.savefig(OUT / "equity_v10_oof_ooc.png", dpi=130)
     plt.close(fig)
 
     # ---------------- 数值曲线落盘
@@ -563,7 +547,7 @@ def main() -> None:
                        + ["ooc"] * (ooc.stop - ooc.start))
     pd.DataFrame({"datetime": df["datetime"].astype(str), "segment": seg_arr, "eq_long": eq_long,
                   "eq_short": eq_short, "eq_combined": eq_comb}).to_csv(
-        OUT / "equity_v11_combined.csv", index=False)
+        OUT / "equity_v10_combined.csv", index=False)
 
     # ---------------- metrics
     meta = {"config": {"SYMBOL": C.SYMBOL, "INTERVAL": C.INTERVAL, "SOURCE": C.BACKTEST_SOURCE,
@@ -573,11 +557,11 @@ def main() -> None:
                        "OBJECTIVE_SECONDARY": "combined robust sharpe (real bar-level, mean - K*std)",
                        "OBJECTIVE_TERTIARY": "worst-fold combined return",
                        "COMBINE": "equity = eq_long + eq_short - INIT_CAPITAL",
-                       "V8_ROBUST_K": C.V8_ROBUST_K,
+                       "V8_N_FOLDS": C.V8_N_FOLDS, "V8_ROBUST_K": C.V8_ROBUST_K,
                        "V8_MIN_TRADES_PER_FOLD": C.V8_MIN_TRADES_PER_FOLD,
-                       "V11_N_FOLDS": C.V11_N_FOLDS, "V11_CAND_PER_SIDE": C.V11_CAND_PER_SIDE,
                        "V8_FOLDS": [[int(a), int(b)] for a, b in folds],
-                       "GRID_REUSED_FROM": C.V11_REUSE_GRID_FROM,
+                       "V9_CAND_PER_SIDE": C.V9_CAND_PER_SIDE,
+                       "GRID_REUSED_FROM": C.V10_REUSE_GRID_FROM,
                        "V7_SL_GRID": list(C.V7_SL_GRID), "V7_REGIME_GRID": list(C.V7_REGIME_GRID),
                        "V4_MAX_VIF": C.V4_MAX_VIF, "FEE_RATE": C.FEE_RATE, "SLIP_RATE": C.SLIP_RATE,
                        "INIT_CAPITAL": C.INIT_CAPITAL, "TRADE_NOTIONAL": C.TRADE_NOTIONAL},
@@ -598,16 +582,16 @@ def main() -> None:
             "metrics": {s: {k: float(v) for k, v in res[side][s]["metrics"].items()} for s in SEGS}}
     for s in SEGS:
         meta["combined"][s] = {k: float(v) for k, v in comb[s]["metrics"].items()}
-    (OUT / "metrics_v11.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
+    (OUT / "metrics_v10.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
 
     tr_all = [dict(side=t.side, seg=s, entry_time=str(t.entry_time), exit_time=str(t.exit_time),
                    entry_price=t.entry_price, exit_price=t.exit_price, exit_reason=t.exit_reason,
                    bars_held=t.bars_held, gross_ret=t.gross_ret, net_ret=t.net_ret, pnl_usdt=t.pnl_usdt)
               for side in ("long", "short") for s in SEGS for t in res[side][s]["trades"]]
-    pd.DataFrame(tr_all).to_csv(OUT / "trades_v11.csv", index=False)
+    pd.DataFrame(tr_all).to_csv(OUT / "trades_v10.csv", index=False)
 
     print("\n" + "=" * 120)
-    print("结果汇总 (v11: 强化选择器, OOF 收益+夏普; OOC 仅观察)")
+    print("结果汇总 (v10: OOF 收益+夏普 双目标; OOC 仅观察)")
     print("=" * 120)
     print("%-6s %-6s %9s %8s %8s %8s %8s %8s" % ("腿", "段", "收益率%", "夏普", "卡玛", "最大回撤%", "胜率%", "开仓数"))
     for s in SEGS:
@@ -621,8 +605,8 @@ def main() -> None:
         if not c["pass"]:
             print("  FAIL: %s | %s" % (c["check"], c["detail"]))
     print("\n产出目录: %s" % OUT)
-    print("  backtest_report_v11.md / metrics_v11.json / equity_v11_oof_ooc.png / "
-          "equity_curve_v11_full.png / equity_v11_combined.csv / selection_pairs_v11.csv / trades_v11.csv")
+    print("  backtest_report_v10.md / metrics_v10.json / equity_v10_oof_ooc.png / "
+          "equity_curve_v10_full.png / equity_v10_combined.csv / selection_pairs_v10.csv / trades_v10.csv")
 
 
 if __name__ == "__main__":

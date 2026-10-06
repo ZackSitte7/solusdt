@@ -12,7 +12,7 @@ v15 只改 long 两处:
      放开后 long 的 OOF 收益 +9.18% -> +9.48%、夏普 8.59 -> 9.64, 选中 tp=10/sl=2/hold=72。
 **short 逐位不变**(仍用 v13/v14 口径与网格, 并排除 long 专用因子); OOC 全程只观察。
 
-运行: python3 run_backtest_v15.py
+运行: python3 scripts/backtest/run_backtest_v15.py
 """
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ import matplotlib.pyplot as plt          # noqa: E402
 import numpy as np                       # noqa: E402
 import pandas as pd                      # noqa: E402
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parents[2]      # 仓库根(脚本位于 scripts/backtest|analysis/)
 sys.path.insert(0, str(BASE_DIR))
 import config as C                                                    # noqa: E402
 from src import data_clean, execution, factor_select, regime          # noqa: E402

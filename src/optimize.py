@@ -6,7 +6,7 @@
     再在 **OOF** 上网格评估每个 (模型, 执行) 组合并选优; OOC 全程只观察。
     `optimize_full_on_oof` 是它的**扩展版**(主脚本使用): 外层再叠「去冗余阈值」,
     即把「因子集松紧」也交给 OOF 选优; 内层执行网格增加「最长持有期」。
-  - `nested_select` (备用路径, 供旧流水线 run_pipeline.py 使用): 在 train 内部做
+  - `nested_select` (备用路径, 供旧流水线 scripts/backtest/run_pipeline.py 使用): 在 train 内部做
     嵌套 CV, 以各折均值选优, 不触碰 OOF/OOC。
 
 为什么主路径把优化放在 OOF:

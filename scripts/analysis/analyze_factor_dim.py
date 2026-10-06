@@ -15,7 +15,7 @@
   4. **共线性**: 条件数 κ = sqrt(λmax/λmin), 逐因子方差膨胀因子 VIF = diag(Σ⁻¹)。
 
 输出: reports/factor_dim.md / factor_dim.csv / factor_dim_vif_{side}.csv / factor_dim.png
-运行: python3 analyze_factor_dim.py
+运行: python3 scripts/analysis/analyze_factor_dim.py
 """
 from __future__ import annotations
 
@@ -35,13 +35,13 @@ plt.rcParams["axes.unicode_minus"] = False
 import numpy as np                       # noqa: E402
 import pandas as pd                      # noqa: E402
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parents[2]      # 仓库根(脚本位于 scripts/backtest|analysis/)
 sys.path.insert(0, str(BASE_DIR))
 import config as C                                          # noqa: E402
 from src import factor_select                               # noqa: E402
 from src import factors as F_lib                            # noqa: E402
 from src.cv import time_split                               # noqa: E402
-from run_backtest_okx import load_clean                     # noqa: E402
+from scripts.backtest.run_backtest_okx import load_clean                     # noqa: E402
 
 
 def factor_set_for(side: str, Fmat: pd.DataFrame, y: pd.Series, train_slice: slice) -> list:

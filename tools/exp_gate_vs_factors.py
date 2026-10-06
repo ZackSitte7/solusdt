@@ -7,8 +7,9 @@ VIF 剪枝/成本/切分/选优规则)。选择只在 OOF, OOC 仅观察。
   arm NO7  : 因子池排除这 7 个趋势因子
 """
 import sys, time
+from pathlib import Path
 import numpy as np, pandas as pd
-sys.path.insert(0, "/workspace/solusdt_repo")
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import config as C
 from src import data_clean, execution, factor_select, regime, models
 from src import factors as F_lib
@@ -68,7 +69,7 @@ for arm, exc in ARMS.items():
                                          tp_rate=float(m["tp_rate"]), win=float(m["win_rate"])))
         print("   %s | dedup %.2f  (%.0fs)" % (arm, d, time.time() - t0), flush=True)
 
-raw = pd.DataFrame(raw_rows); raw.to_csv("/workspace/solusdt_repo/reports/v14/exp_gate_raw.csv", index=False)
+raw = pd.DataFrame(raw_rows); raw.to_csv(C.REPORT_DIR / "v14" / "exp_gate_raw.csv", index=False)
 
 rows = []
 print("\n" + "=" * 126)
@@ -92,5 +93,5 @@ for arm in ARMS:
                          ooc_sharpe=float(mo["sharpe"]), ooc_n=int(mo["n_trades"]),
                          tp=float(best.tp), sl=float(best.sl), hold=int(best.hold),
                          dedup=float(best.dedup), model=best.model, thr_abs=float(best.thr_abs)))
-pd.DataFrame(rows).to_csv("/workspace/solusdt_repo/reports/v14/exp_gate_summary.csv", index=False)
+pd.DataFrame(rows).to_csv(C.REPORT_DIR / "v14" / "exp_gate_summary.csv", index=False)
 print("\n耗时 %.0fs" % (time.time() - t0))

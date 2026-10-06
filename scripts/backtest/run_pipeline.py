@@ -22,7 +22,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt          # noqa: E402
 import pandas as pd                      # noqa: E402
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import config as C                       # noqa: E402
 from src import data_clean, factors as F_lib, factor_select, models, optimize, execution  # noqa: E402
 from src.cv import describe_split, time_split                                   # noqa: E402

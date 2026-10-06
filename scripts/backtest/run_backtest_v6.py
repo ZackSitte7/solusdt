@@ -11,7 +11,7 @@
 
 另: 按用户要求, 回测数据起点对齐到 config.DATA_START(默认 2021-10-01)。
 
-运行: python3 run_backtest_v6.py
+运行: python3 scripts/backtest/run_backtest_v6.py
 """
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt          # noqa: E402
 import numpy as np                       # noqa: E402
 import pandas as pd                      # noqa: E402
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parents[2]      # 仓库根(脚本位于 scripts/backtest|analysis/)
 sys.path.insert(0, str(BASE_DIR))
 import config as C                                                    # noqa: E402
 from src import data_clean, execution, factor_select, regime          # noqa: E402

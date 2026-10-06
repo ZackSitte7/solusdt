@@ -9,7 +9,7 @@
   4. **硬约束 tp > sl**(风险报酬比 > 1), 削掉"止盈比止损还近"的退化配置。
 
 与 v1 的唯一差别就是第 4 条(内层执行网格加过滤); 其余口径完全一致, 保证可比。
-运行: python3 run_backtest_v3.py
+运行: python3 scripts/backtest/run_backtest_v3.py
 """
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt          # noqa: E402
 import numpy as np                       # noqa: E402
 import pandas as pd                      # noqa: E402
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parents[2]      # 仓库根(脚本位于 scripts/backtest|analysis/)
 sys.path.insert(0, str(BASE_DIR))
 import config as C                                                    # noqa: E402
 from src import data_clean, execution, factor_select                 # noqa: E402

@@ -11,7 +11,7 @@
 
 输出: reports/factor_cumvar_{side}.csv 与 reports/factor_cumvar.png
 
-运行: python3 analyze_factors.py
+运行: python3 scripts/analysis/analyze_factors.py
 """
 from __future__ import annotations
 
@@ -30,13 +30,13 @@ plt.rcParams["axes.unicode_minus"] = False
 import numpy as np                       # noqa: E402
 import pandas as pd                      # noqa: E402
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parents[2]      # 仓库根(脚本位于 scripts/backtest|analysis/)
 sys.path.insert(0, str(BASE_DIR))
 import config as C                                          # noqa: E402
 from src import factor_select                               # noqa: E402
 from src import factors as F_lib                            # noqa: E402
 from src.cv import time_split                               # noqa: E402
-from run_backtest_okx import load_clean                     # noqa: E402
+from scripts.backtest.run_backtest_okx import load_clean                     # noqa: E402
 
 
 def cumulative_r2(X: np.ndarray, y: np.ndarray) -> np.ndarray:

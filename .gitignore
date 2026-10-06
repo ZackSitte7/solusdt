@@ -36,7 +36,7 @@ reports/
 !data/solusdt_4h_clean.parquet
 !data/solusdt_4h_clean_okx.parquet
 
-# ---- 例外: 回测报告随仓库分发(见 run_backtest_okx.py / _v2.py ... / _v10.py) ----
+# ---- 例外: 回测报告随仓库分发(见 scripts/backtest/run_backtest_okx.py / _v2.py ... / _v10.py) ----
 !reports/
 !reports/**/*.md
 !reports/**/*.json
@@ -45,7 +45,7 @@ reports/
 
 # ---- 出库: v8/v9 的"配置×子折"原始网格转储 ----
 # 单文件约 108MB, 超过 GitHub 单文件 100MiB 硬上限, 直接推送会被拒绝;
-# 且可由 run_backtest_v8.py / run_backtest_v9.py 重新生成, 故原文件不入库。
+# 且可由 scripts/backtest/run_backtest_v8.py / run_backtest_v9.py 重新生成, 故原文件不入库。
 reports/**/selection_folds_*.csv
 
 # ---- 出库: v15 实验的"原始网格转储"(单文件 29~83MB, 可由 tools/exp_*.py 重新生成) ----
@@ -62,7 +62,7 @@ reports/**/v15_tpext_grid.csv
 !reports/**/shards/**
 
 # ---- 出库: v18 滚动 walk-forward 的逐折"选参×模型×执行"全量网格 ----
-# 单文件 0.8~6.8MB, 10 个文件共约 34MB, 可由 run_backtest_v18.py 重新生成;
+# 单文件 0.8~6.8MB, 10 个文件共约 34MB, 可由 scripts/backtest/run_backtest_v18.py 重新生成;
 # 汇总结论已随 walk_forward_steps.csv / metrics_v18.json / backtest_report_v18.md 入库。
 reports/**/selection_grid_step*.csv
 
